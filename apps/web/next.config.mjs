@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['wasm-lib'],
+  transpilePackages: ['zk-circuits'],
   webpack(config, { isServer }) {
     // Enable WebAssembly
     config.experiments = {
@@ -12,7 +12,7 @@ const nextConfig = {
 
     // Prevent WASM from being processed server-side (unless specifically intended)
     if (isServer) {
-      config.externals.push(/wasm-lib/);
+      config.externals.push(/zk-circuits/);
     }
 
     // Organize WASM output files

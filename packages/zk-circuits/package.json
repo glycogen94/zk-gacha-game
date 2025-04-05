@@ -1,11 +1,11 @@
 {
-  "name": "wasm-lib",
+  "name": "zk-circuits",
   "version": "0.1.0",
-  "main": "./pkg/wasm_lib.js",
-  "types": "./pkg/wasm_lib.d.ts",
+  "main": "./pkg/zk_circuits.js",
+  "types": "./pkg/zk_circuits.d.ts",
   "files": ["pkg"],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir ./pkg",
+    "build": "wasm-pack build --target web --out-dir ./pkg --no-pack",
     "lint": "cargo clippy -- -D warnings",
     "format": "cargo fmt --all",
     "test": "cargo test",

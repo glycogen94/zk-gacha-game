@@ -1,4 +1,4 @@
-import type * as Wasm from 'wasm-lib';
+import type * as Wasm from 'zk-circuits';
 
 let wasmModule: typeof Wasm | null = null;
 
@@ -9,7 +9,7 @@ export const loadWasm = async (): Promise<typeof Wasm> => {
 
   try {
     // Dynamic import! The path should resolve correctly due to workspace:*
-    const loaded = await import('wasm-lib');
+    const loaded = await import('zk-circuits');
 
     // Initialize the module if necessary - depends on wasm-pack output
     await loaded.default?.(); // This line may not be needed depending on wasm-pack version
