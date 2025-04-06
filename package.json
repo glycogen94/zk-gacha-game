@@ -16,9 +16,11 @@
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "generate:crs": "cd scripts && cargo run --bin generate_crs --release",
     "prepare:gacha-data": "cd scripts && cargo run --bin prepare_gacha_data --release",
-    "setup:web-assets": "mkdir -p apps/web/public && cp scripts/output/*.bin apps/web/public/ && cp scripts/output/merkle_root.hex apps/web/public/",
-    "setup:item-data": "mkdir -p apps/web/public/items && cp scripts/output/items/*.json apps/web/public/items/ && ls -1 apps/web/public/items/*.json > apps/web/public/items/key_list.txt",
-    "setup": "pnpm run generate:crs && pnpm run prepare:gacha-data && pnpm run setup:web-assets && pnpm run setup:item-data"
+    "prepare:dirs": "mkdir -p scripts/output/items apps/web/public/gacha/items",
+    "setup:web-assets": "mkdir -p apps/web/public/gacha && cp scripts/output/*.bin apps/web/public/gacha/ && cp scripts/output/merkle_root.hex apps/web/public/gacha/",
+    "setup:item-data": "mkdir -p apps/web/public/gacha/items && cp scripts/output/items/*.json apps/web/public/gacha/items/ && ls -1 apps/web/public/gacha/items/*.json > apps/web/public/gacha/items/key_list.txt",
+    "setup:item-master": "cp scripts/output/item_master.json apps/web/public/gacha/",
+    "setup:all": "pnpm run prepare:dirs && pnpm run generate:crs && pnpm run prepare:gacha-data && pnpm run setup:web-assets && pnpm run setup:item-data && pnpm run setup:item-master"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.3",

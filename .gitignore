@@ -55,9 +55,5 @@ pnpm-debug.log*
 !.vscode/tasks.json
 
 # setup files
-apps/web/public/items/*
-apps/web/public/gacha_pk.bin
-apps/web/public/gacha_vk.bin
-apps/web/public/merkle_root.hex
-apps/web/public/params.bin
-apps/web/public/item_master.json
+apps/web/public/gacha/*
+scripts/output/*

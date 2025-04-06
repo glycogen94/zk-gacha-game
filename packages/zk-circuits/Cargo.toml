@@ -38,7 +38,8 @@ parking_lot = "0.12"    # Mutex for thread-safe access to globals
 rand = "0.8"            # For proof generation randomness
 thiserror = "1.0"       # For error handling
 bincode = "1.3"         # Alternative serialization (optional)
-instant = "0.1.13"
+instant = { version = "0.1.13", features = [ "wasm-bindgen", "inaccurate" ] }
+
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.39" # For WASM testing

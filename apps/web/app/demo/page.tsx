@@ -1,6 +1,6 @@
 'use client';
 
-import { loadWasm } from '@/lib/wasmLoader';
+import { loadWasmModule } from '@/lib/wasmLoader';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -14,10 +14,10 @@ export default function WasmDemo() {
 
   useEffect(() => {
     // Load WASM module when the component mounts client-side
-    const loadWasmModule = async () => {
+    const initWasm = async () => {
       try {
         setLoading(true);
-        await loadWasm();
+        await loadWasmModule();
         setWasmLoaded(true);
       } catch (err) {
         console.error('Error loading WASM module:', err);
@@ -26,13 +26,13 @@ export default function WasmDemo() {
       }
     };
 
-    loadWasmModule();
+    initWasm();
   }, []);
 
   const handleAdd = async () => {
     if (!wasmLoaded) return;
     try {
-      const wasm = await loadWasm();
+      const wasm = await loadWasmModule();
       setResult(wasm.add(5, 7));
     } catch (err) {
       console.error('Error calling WASM add:', err);
@@ -42,7 +42,7 @@ export default function WasmDemo() {
   const handleGreet = async () => {
     if (!wasmLoaded) return;
     try {
-      const wasm = await loadWasm();
+      const wasm = await loadWasmModule();
       setGreeting(wasm.greet('Next.js & Rust'));
     } catch (err) {
       console.error('Error calling WASM greet:', err);
@@ -52,7 +52,7 @@ export default function WasmDemo() {
   const calculateFibonacci = async () => {
     if (!wasmLoaded || fibIndex < 0) return;
     try {
-      const wasm = await loadWasm();
+      const wasm = await loadWasmModule();
       setFibResult(wasm.fibonacci_fast(fibIndex));
     } catch (err) {
       console.error('Error calculating Fibonacci:', err);

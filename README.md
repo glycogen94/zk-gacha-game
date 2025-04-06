@@ -107,12 +107,19 @@ Built upon the `Nextjs-Rust-WASM-monorepo` template.
 
 1.  **Initial Setup:** Follow Step 1 above (clone, rename, install deps).
 2.  **Run Offline Scripts (One-time or when circuits/params change):**
-    *   `cd scripts && cargo run --bin generate_crs --release` (adjust path/command) - Generates `*.bin` files.
-    *   `cd scripts && cargo run --bin prepare_gacha_data --release` (adjust path/command) - Generates `merkle_root.hex` and item JSON files.
-    *   **Note:** You'll need to configure these scripts (e.g., item definitions, output paths). Place generated files (`*.bin`, `merkle_root.hex`) into `apps/web/public/` for local development, and upload item JSON files somewhere accessible (or also put in `/public` for simple testing). Create a `key_list.txt` in `/public` listing the local paths to the JSON files.
+    *   간편 설정: `pnpm run setup:all` - 모든 필요한 파일을 생성하고 웹 앱의 public 폴더로 복사합니다.
+
+    *   개별 스크립트 실행:
+        *   `pnpm run prepare:dirs` - 필요한 디렉토리를 생성합니다.
+        *   `pnpm run generate:crs` - CRS 파일(`*.bin`)을 생성합니다.
+        *   `pnpm run prepare:gacha-data` - 가챠 데이터(`merkle_root.hex`, 아이템 JSON 파일)를 생성합니다.
+        *   `pnpm run setup:web-assets` - 생성된 CRS와 Merkle root를 웹 앱 public 폴더로 복사합니다.
+        *   `pnpm run setup:item-data` - 아이템 JSON 파일을 웹 앱 public 폴더로 복사합니다.
+        *   `pnpm run setup:item-master` - 아이템 마스터 데이터를 웹 앱 public 폴더로 복사합니다.
+
+    *   **참고:** 모든 파일은 자동으로 `apps/web/public/gacha/` 디렉토리에 저장되며, 아이템 JSON 파일은 `apps/web/public/gacha/items/` 디렉토리에 위치합니다.
 3.  **Run Development Server:**
     ```bash
-    pnpm run setup
     pnpm run dev
     ```
 4.  **Access App:** Open `http://localhost:3000` (or your configured port) in your browser. Navigate to the gacha page.

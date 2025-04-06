@@ -25,6 +25,16 @@ struct ItemMaster {
     rarity: String,
 }
 
+// Item details for the frontend (camelCase for JavaScript)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct ItemDetails {
+    id: String,
+    name: String,
+    #[serde(rename = "imageUrl")]
+    imageUrl: String,
+    rarity: String,
+}
+
 // Holds data needed for the client/prover for a specific item slot
 #[derive(Serialize, Deserialize, Debug)]
 struct ItemProofData {
@@ -133,24 +143,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 8. Save the list of generated item file names
     save_key_list(&key_list, &output_dir.join("key_list.txt"))?;
 
-    // 9. Save the item master data (for frontend display)
-    save_item_master_data(&item_master_list, &output_dir.join("item_master.json"))?;
+    // 9. Create and save the item master data as a map using item_id_hex as keys
+    let mut item_master_map = std::collections::HashMap::new();
+    
+    for i in 0..item_master_list.len() {
+        if i < generated_leaf_data.len() {
+            let item_details = ItemDetails {
+                id: item_master_list[i].id.clone(),
+                name: item_master_list[i].name.clone(),
+                imageUrl: item_master_list[i].image_url.clone(),
+                rarity: item_master_list[i].rarity.clone(),
+            };
+            item_master_map.insert(generated_leaf_data[i].item_id_hex.clone(), item_details);
+        }
+    }
+    
+    save_item_master_map(&item_master_map, &output_dir.join("item_master.json"))?;
 
     println!("Data preparation complete!");
     Ok(())
 }
 
-/// Define gacha item properties (same as before)
+/// Define gacha item properties (Pokemon theme)
 fn define_gacha_items() -> Vec<ItemMaster> {
     vec![
-        ItemMaster { id: "sword_001".into(), name: "Common Sword".into(), image_url: "/img/common_sword.png".into(), rarity: "common".into() },
-        ItemMaster { id: "sword_002".into(), name: "Rare Sword".into(), image_url: "/img/rare_sword.png".into(), rarity: "rare".into() },
-        ItemMaster { id: "sword_003".into(), name: "Epic Sword".into(), image_url: "/img/epic_sword.png".into(), rarity: "epic".into() },
-        ItemMaster { id: "shield_001".into(), name: "Common Shield".into(), image_url: "/img/common_shield.png".into(), rarity: "common".into() },
-        ItemMaster { id: "shield_002".into(), name: "Rare Shield".into(), image_url: "/img/rare_shield.png".into(), rarity: "rare".into() },
-        ItemMaster { id: "potion_001".into(), name: "Health Potion".into(), image_url: "/img/health_potion.png".into(), rarity: "common".into() },
-        ItemMaster { id: "gem_001".into(), name: "Diamond Gem".into(), image_url: "/img/diamond_gem.png".into(), rarity: "legendary".into() },
-        ItemMaster { id: "armor_001".into(), name: "Iron Armor".into(), image_url: "/img/iron_armor.png".into(), rarity: "common".into() },
+        ItemMaster { id: "pokemon_001".into(), name: "Pikachu".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "rare".into() },
+        ItemMaster { id: "pokemon_002".into(), name: "Charizard".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "legendary".into() },
+        ItemMaster { id: "pokemon_003".into(), name: "Bulbasaur".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "uncommon".into() },
+        ItemMaster { id: "pokemon_004".into(), name: "Squirtle".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "uncommon".into() },
+        ItemMaster { id: "pokemon_005".into(), name: "Jigglypuff".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "common".into() },
+        ItemMaster { id: "pokemon_006".into(), name: "Eevee".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "uncommon".into() },
+        ItemMaster { id: "pokemon_007".into(), name: "Mewtwo".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "legendary".into() },
+        ItemMaster { id: "pokemon_008".into(), name: "Snorlax".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "rare".into() },
+        ItemMaster { id: "pokemon_009".into(), name: "Gengar".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "rare".into() },
+        ItemMaster { id: "pokemon_010".into(), name: "Magikarp".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "common".into() },
+        ItemMaster { id: "pokemon_011".into(), name: "Psyduck".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "common".into() },
+        ItemMaster { id: "pokemon_012".into(), name: "Mew".into(), image_url: "/gacha/images/placeholder.svg".into(), rarity: "legendary".into() },
         // Add more items as needed... Ensure the list is padded later.
     ]
 }
@@ -252,6 +280,16 @@ fn save_item_master_data(
     path: &PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(item_definitions)?;
+    let mut file = File::create(path)?;
+    file.write_all(json.as_bytes())?;
+    Ok(())
+}
+
+fn save_item_master_map(
+    item_map: &std::collections::HashMap<String, ItemDetails>,
+    path: &PathBuf,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string_pretty(item_map)?;
     let mut file = File::create(path)?;
     file.write_all(json.as_bytes())?;
     Ok(())
