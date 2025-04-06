@@ -1,5 +1,5 @@
 use wasm_bindgen_test::*;
-use wasm_lib::*;
+use zk_circuits::tests::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 

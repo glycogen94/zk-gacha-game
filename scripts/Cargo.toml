@@ -1,0 +1,38 @@
+[package]
+name = "zk_gacha_scripts"
+version = "0.1.0"
+edition = "2021"
+authors = ["glycogen94 <ingeunlee@kookmin.ac.kr>"]
+description = "Offline scripts for ZK Gacha Game Demo data preparation"
+license = "MIT"
+
+[dependencies]
+# Use the Rust library from our workspace
+zk_circuits = { path = "../packages/zk-circuits" }
+
+# Arkworks dependencies (similar to zk-circuits)
+ark-ff = { version = "^0.5.0", default-features = false }
+ark-ec = { version = "^0.5.0", default-features = false }
+ark-bls12-381 = { version = "^0.5.0", default-features = false, features = ["curve"] }
+ark-std = { version = "^0.5.0", default-features = false, features = ["print-trace"] }
+ark-relations = { version = "^0.5.1", default-features = false }
+ark-snark = "^0.5.0"
+ark-groth16 = { version = "^0.5.0", default-features = false, features = ["r1cs"] }
+ark-crypto-primitives = { version = "0.5.0", default-features = false, features = ["crh", "merkle_tree", "sponge", "r1cs"] }
+ark-serialize = { version = "^0.5.0", features = ["derive"] }
+
+# Utilities
+rand = "0.8"
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+clap = { version = "4.3", features = ["derive"] } # Command line arg parsing
+
+[[bin]]
+name = "generate_crs"
+path = "src/bin/generate_crs.rs"
+
+[[bin]]
+name = "prepare_gacha_data"
+path = "src/bin/prepare_gacha_data.rs"

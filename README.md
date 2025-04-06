@@ -112,6 +112,7 @@ Built upon the `Nextjs-Rust-WASM-monorepo` template.
     *   **Note:** You'll need to configure these scripts (e.g., item definitions, output paths). Place generated files (`*.bin`, `merkle_root.hex`) into `apps/web/public/` for local development, and upload item JSON files somewhere accessible (or also put in `/public` for simple testing). Create a `key_list.txt` in `/public` listing the local paths to the JSON files.
 3.  **Run Development Server:**
     ```bash
+    pnpm run setup
     pnpm run dev
     ```
 4.  **Access App:** Open `http://localhost:3000` (or your configured port) in your browser. Navigate to the gacha page.

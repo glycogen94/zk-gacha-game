@@ -3,21 +3,52 @@ name = "zk_circuits"
 version = "0.1.0"
 edition = "2021"
 authors = ["glycogen94 <ingeunlee@kookmin.ac.kr>"]
-description = "WASM library for the Next.js + Rust monorepo"
+description = "ZK circuits and WASM bindings for the Verifiable Gacha Game Demo"
+license = "MIT"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"] # cdylib for WASM, rlib for integration tests/scripts
 
 [dependencies]
+# WASM Interaction
 wasm-bindgen = "0.2.89"
+serde = { version = "1.0", features = ["derive"] }
+serde_bytes = "0.11"
+serde-wasm-bindgen = "0.6"
 console_error_panic_hook = { version = "0.1.7", optional = true }
+getrandom = { version = "0.2", features = ["js"] } # WASM random source
+web-sys = { version = "0.3.77", features = ["console"] } # For console logging in WASM
+
+# Arkworks Core & Algebra
+ark-ff = { version = "^0.5.0", default-features = false }
+ark-ec = { version = "^0.5.0", default-features = false }
+ark-bls12-381 = { version = "^0.5.0", default-features = false, features = ["curve"] }
+ark-ed-on-bls12-381 ={ version = "^0.5.0", default-features = false, features = ["r1cs"] }
+ark-std = { version = "^0.5.0", default-features = false, features = ["print-trace"] } # Add "parallel" if needed
+ark-relations = { version = "^0.5.0", default-features = false }
+ark-r1cs-std = { version = "^0.5.0", default-features = false }
+ark-snark = "^0.5.0"
+ark-groth16 = { version = "^0.5.0", default-features = false, features = ["r1cs"] }
+ark-crypto-primitives = { version = "^0.5.0", default-features = false, features = ["std", "prf", "commitment", "crh", "merkle_tree", "sponge", "r1cs"] }
+ark-serialize = { version = "^0.5.0", features = ["derive"] }
+# Utilities
+hex = "0.4"
+once_cell = "1.19"      # For global PK/VK/Params storage
+parking_lot = "0.12"    # Mutex for thread-safe access to globals
+rand = "0.8"            # For proof generation randomness
+thiserror = "1.0"       # For error handling
+bincode = "1.3"         # Alternative serialization (optional)
+instant = "0.1.13"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.39"
+wasm-bindgen-test = "0.3.39" # For WASM testing
 
 [features]
 default = ["console_error_panic_hook"]
+# parallel = ["ark-std/parallel", "ark-crypto-primitives/parallel"] # Enable parallel features if needed
 
 [profile.release]
-opt-level = 3
-lto = true
+opt-level = 3 # Optimize for speed and size
+lto = true      # Link-Time Optimization
+codegen-units = 1 # Better optimization potential
+panic = 'abort'   # Smaller code size on panic
