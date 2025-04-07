@@ -1,0 +1,1681 @@
+diff --git a/apps/web/__tests__/components/gacha/GachaDisplay.test.tsx b/apps/web/__tests__/components/gacha/GachaDisplay.test.tsx
+new file mode 100644
+index 0000000..ad1fbed
+--- /dev/null
++++ b/apps/web/__tests__/components/gacha/GachaDisplay.test.tsx
+@@ -0,0 +1,282 @@
++import GachaDisplay from '@/components/gacha/GachaDisplay';
++import { useGachaStore } from '@/stores/gachaStore';
++// apps/web/__tests__/components/gacha/GachaDisplay.test.tsx
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++
++// Mock the gacha store
++vi.mock('@/stores/gachaStore', () => ({
++  useGachaStore: vi.fn(),
++}));
++
++// Define the mock implementation type
++const mockStore = {
++  isKeysInitialized: true,
++  performPull: vi.fn(),
++  isPulling: false,
++  pullResult: null as {
++    itemIdHex: string;
++    secretKeyHex: string;
++    merklePathNodesHex: string[];
++    leafSiblingHashHex: string;
++    leafIndex: number;
++    itemDetails: {
++      id: string;
++      name: string;
++      imageUrl: string;
++      rarity?: string;
++    };
++  } | null,
++  pullError: null as string | null,
++  generateProofForLastPull: vi.fn(),
++  isGeneratingProof: false,
++  proof: null as Uint8Array | null,
++  proofGenerationError: null as string | null,
++  verifyProofForLastPull: vi.fn(),
++  isVerifyingProof: false,
++  verificationResult: null as boolean | null,
++  verificationError: null as string | null,
++  resetPullState: vi.fn(),
++};
++
++describe('GachaDisplay', () => {
++  beforeEach(() => {
++    vi.resetAllMocks();
++    // Default mock implementation
++    vi.mocked(useGachaStore).mockImplementation(() => mockStore);
++  });
++
++  it('renders loading state when keys are not initialized', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      isKeysInitialized: false,
++    }));
++
++    render(<GachaDisplay />);
++    expect(
++      screen.getByText(/initializing zero-knowledge proof system/i),
++    ).toBeInTheDocument();
++  });
++
++  it('renders pull button in normal state', () => {
++    render(<GachaDisplay />);
++
++    // Should display the security disclaimer
++    expect(screen.getByText(/demo environment/i)).toBeInTheDocument();
++
++    // Should display pull button
++    const pullButton = screen.getByRole('button', { name: /open poké ball/i });
++    expect(pullButton).toBeInTheDocument();
++    expect(pullButton).not.toBeDisabled();
++  });
++
++  it('displays loading state when pulling', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      isPulling: true,
++    }));
++
++    render(<GachaDisplay />);
++    expect(screen.getByText(/opening poké ball/i)).toBeInTheDocument();
++  });
++
++  it('displays pull error when there is one', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullError: 'Failed to fetch item data',
++    }));
++
++    render(<GachaDisplay />);
++    expect(screen.getByText(/failed to fetch item data/i)).toBeInTheDocument();
++  });
++
++  it('displays pulled item after successful pull', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++    }));
++
++    render(<GachaDisplay />);
++    expect(screen.getByText(/you pulled/i)).toBeInTheDocument();
++    expect(screen.getByText(/pikachu/i)).toBeInTheDocument();
++    expect(screen.getByText(/rare/i)).toBeInTheDocument();
++    expect(
++      screen.getByRole('button', { name: /generate verification proof/i }),
++    ).toBeInTheDocument();
++  });
++
++  it('shows proof generation state', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++      isGeneratingProof: true,
++    }));
++
++    render(<GachaDisplay />);
++    expect(
++      screen.getByText(/generating zero-knowledge proof/i),
++    ).toBeInTheDocument();
++  });
++
++  it('shows proof verification button after proof is generated', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++      proof: new Uint8Array([1, 2, 3, 4]),
++    }));
++
++    render(<GachaDisplay />);
++    expect(
++      screen.getByRole('button', { name: /verify proof/i }),
++    ).toBeInTheDocument();
++  });
++
++  it('shows verification result when proof is verified successfully', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++      proof: new Uint8Array([1, 2, 3, 4]),
++      verificationResult: true,
++    }));
++
++    render(<GachaDisplay />);
++    expect(screen.getByText(/verification successful/i)).toBeInTheDocument();
++  });
++
++  it('shows failed verification result when proof verification fails', () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++      proof: new Uint8Array([1, 2, 3, 4]),
++      verificationResult: false,
++    }));
++
++    render(<GachaDisplay />);
++    expect(screen.getByText(/verification failed/i)).toBeInTheDocument();
++  });
++
++  it('calls performPull when button is clicked', async () => {
++    render(<GachaDisplay />);
++
++    const pullButton = screen.getByRole('button', { name: /open poké ball/i });
++    fireEvent.click(pullButton);
++
++    expect(mockStore.resetPullState).toHaveBeenCalledTimes(1);
++    expect(mockStore.performPull).toHaveBeenCalledTimes(1);
++  });
++
++  it('calls generateProofForLastPull when generate proof button is clicked', async () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++    }));
++
++    render(<GachaDisplay />);
++
++    const generateButton = screen.getByRole('button', {
++      name: /generate verification proof/i,
++    });
++    fireEvent.click(generateButton);
++
++    expect(mockStore.generateProofForLastPull).toHaveBeenCalledTimes(1);
++  });
++
++  it('calls verifyProofForLastPull when verify button is clicked', async () => {
++    vi.mocked(useGachaStore).mockImplementation(() => ({
++      ...mockStore,
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: [],
++        leafSiblingHashHex: '0xef',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++      proof: new Uint8Array([1, 2, 3, 4]),
++    }));
++
++    render(<GachaDisplay />);
++
++    const verifyButton = screen.getByRole('button', { name: /verify proof/i });
++    fireEvent.click(verifyButton);
++
++    expect(mockStore.verifyProofForLastPull).toHaveBeenCalledTimes(1);
++  });
++});
+diff --git a/apps/web/__tests__/stores/gachaStore.test.ts b/apps/web/__tests__/stores/gachaStore.test.ts
+new file mode 100644
+index 0000000..5e8eade
+--- /dev/null
++++ b/apps/web/__tests__/stores/gachaStore.test.ts
+@@ -0,0 +1,307 @@
++import * as wasmLoader from '@/lib/wasmLoader';
++import { useGachaStore } from '@/stores/gachaStore';
++// apps/web/__tests__/stores/gachaStore.test.ts
++import { act } from '@testing-library/react';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++
++// WASM 모듈 모킹
++vi.mock('@/lib/wasmLoader', () => ({
++  loadWasmModule: vi.fn().mockResolvedValue({}),
++  initGachaKeys: vi.fn().mockResolvedValue(undefined),
++  generateGachaProof: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3, 4])),
++  verifyGachaProof: vi.fn().mockResolvedValue(true),
++}));
++
++describe('useGachaStore', () => {
++  // Store reset 함수 (테스트 간 상태 초기화를 위함)
++  const resetStore = () => {
++    const { resetPullState } = useGachaStore.getState();
++    resetPullState();
++    useGachaStore.setState({
++      merkleRoot: null,
++      itemMasterData: null,
++      availableKeyUrls: [],
++      isWasmInitialized: false,
++      isKeysInitialized: false,
++      isLoadingAssets: false,
++      initializationError: null,
++      inventory: [],
++    });
++  };
++
++  beforeEach(() => {
++    resetStore();
++    vi.clearAllMocks();
++  });
++
++  afterEach(() => {
++    resetStore();
++  });
++
++  // 전역 fetch 모킹
++  const mockFetchResponses = {
++    '/gacha/gacha_pk.bin': new Uint8Array([1, 2, 3]),
++    '/gacha/gacha_vk.bin': new Uint8Array([4, 5, 6]),
++    '/gacha/params.bin': new Uint8Array([7, 8, 9]),
++    '/gacha/merkle_root.hex': 'deadbeef',
++    '/gacha/items/key_list.txt':
++      'gacha/items/item_0.json\ngacha/items/item_1.json',
++    '/gacha/item_master.json': {
++      '0x1234': {
++        id: '0x1234',
++        name: 'Pikachu',
++        imageUrl: '/pokemon/pikachu.png',
++        rarity: 'rare',
++      },
++    },
++    'gacha/items/item_0.json': {
++      itemIdHex: '0x1234',
++      secretKeyHex: '0xabcd',
++      merklePathNodesHex: ['0x1111', '0x2222'],
++      leafSiblingHashHex: '0x3333',
++      leafIndex: 0,
++    },
++  };
++
++  // 전역 fetch 모킹 설정
++  global.fetch = vi.fn().mockImplementation((url) => {
++    const urlString = url.toString();
++
++    // JSON 응답인 경우
++    if (urlString.endsWith('.json')) {
++      return Promise.resolve({
++        ok: true,
++        json: () => Promise.resolve(mockFetchResponses[urlString]),
++        arrayBuffer: () => Promise.reject(new Error('Not an array buffer')),
++        text: () => Promise.reject(new Error('Not a text')),
++      });
++    }
++
++    // 텍스트 응답인 경우
++    if (urlString.endsWith('.hex') || urlString.endsWith('.txt')) {
++      return Promise.resolve({
++        ok: true,
++        text: () => Promise.resolve(mockFetchResponses[urlString]),
++        json: () => Promise.reject(new Error('Not a JSON')),
++        arrayBuffer: () => Promise.reject(new Error('Not an array buffer')),
++      });
++    }
++
++    // 바이너리 응답인 경우
++    if (urlString.endsWith('.bin')) {
++      return Promise.resolve({
++        ok: true,
++        arrayBuffer: () => Promise.resolve(mockFetchResponses[urlString]),
++        json: () => Promise.reject(new Error('Not a JSON')),
++        text: () => Promise.reject(new Error('Not a text')),
++      });
++    }
++
++    return Promise.reject(new Error(`Unhandled mock URL: ${urlString}`));
++  });
++
++  // 테스트 케이스
++  it('initializes correctly with loadInitialAssets', async () => {
++    const { loadInitialAssets } = useGachaStore.getState();
++
++    // 초기 상태 확인
++    expect(useGachaStore.getState().isKeysInitialized).toBe(false);
++
++    // 함수 호출
++    await act(async () => {
++      await loadInitialAssets();
++    });
++
++    // 상태 변화 확인
++    const state = useGachaStore.getState();
++    expect(state.isWasmInitialized).toBe(true);
++    expect(state.isKeysInitialized).toBe(true);
++    expect(state.merkleRoot).toBe('deadbeef');
++    expect(state.availableKeyUrls).toEqual([
++      'gacha/items/item_0.json',
++      'gacha/items/item_1.json',
++    ]);
++    expect(state.itemMasterData).toEqual({
++      '0x1234': {
++        id: '0x1234',
++        name: 'Pikachu',
++        imageUrl: '/pokemon/pikachu.png',
++        rarity: 'rare',
++      },
++    });
++
++    // WASM 로더 함수들이 호출되었는지 확인
++    expect(wasmLoader.loadWasmModule).toHaveBeenCalledTimes(1);
++    expect(wasmLoader.initGachaKeys).toHaveBeenCalledTimes(1);
++  });
++
++  it('performs a pull successfully', async () => {
++    // 스토어 초기화
++    useGachaStore.setState({
++      isKeysInitialized: true,
++      availableKeyUrls: ['gacha/items/item_0.json'],
++      itemMasterData: {
++        '0x1234': {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++    });
++
++    const { performPull } = useGachaStore.getState();
++
++    // 풀 수행
++    await act(async () => {
++      await performPull();
++    });
++
++    // 상태 확인
++    const state = useGachaStore.getState();
++    expect(state.isPulling).toBe(false);
++    expect(state.pullResult).not.toBeNull();
++    expect(state.pullResult?.itemDetails.name).toBe('Pikachu');
++
++    // 인벤토리에 추가되었는지 확인
++    expect(state.inventory.length).toBe(1);
++    expect(state.inventory[0].name).toBe('Pikachu');
++  });
++
++  it('generates proof for last pull', async () => {
++    // 스토어 초기화 (가챠 풀 완료 상태로)
++    useGachaStore.setState({
++      isKeysInitialized: true,
++      merkleRoot: 'deadbeef',
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: ['0x1111', '0x2222'],
++        leafSiblingHashHex: '0x3333',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++    });
++
++    const { generateProofForLastPull } = useGachaStore.getState();
++
++    // 증명 생성
++    await act(async () => {
++      await generateProofForLastPull();
++    });
++
++    // 상태 확인
++    const state = useGachaStore.getState();
++    expect(state.isGeneratingProof).toBe(false);
++    expect(state.proof).toBeInstanceOf(Uint8Array);
++    expect(state.proofGenerationError).toBeNull();
++
++    // WASM 함수가 호출되었는지 확인
++    expect(wasmLoader.generateGachaProof).toHaveBeenCalledTimes(1);
++
++    // 호출 인자 확인
++    const expectedInputs = {
++      merkleRoot: 'deadbeef',
++      itemIdHex: '0x1234',
++      secretKeyHex: '0xabcd',
++      merklePathNodesHex: ['0x1111', '0x2222'],
++      leafSiblingHashHex: '0x3333',
++      leafIndex: 0,
++    };
++    expect(wasmLoader.generateGachaProof).toHaveBeenCalledWith(expectedInputs);
++  });
++
++  it('verifies proof correctly', async () => {
++    // 스토어 초기화 (증명 생성 완료 상태로)
++    const mockProof = new Uint8Array([1, 2, 3, 4]);
++    useGachaStore.setState({
++      isKeysInitialized: true,
++      merkleRoot: 'deadbeef',
++      proof: mockProof,
++    });
++
++    const { verifyProofForLastPull } = useGachaStore.getState();
++
++    // 증명 검증
++    await act(async () => {
++      await verifyProofForLastPull();
++    });
++
++    // 상태 확인
++    const state = useGachaStore.getState();
++    expect(state.isVerifyingProof).toBe(false);
++    expect(state.verificationResult).toBe(true);
++    expect(state.verificationError).toBeNull();
++
++    // WASM 함수가 호출되었는지 확인
++    expect(wasmLoader.verifyGachaProof).toHaveBeenCalledTimes(1);
++    expect(wasmLoader.verifyGachaProof).toHaveBeenCalledWith(
++      'deadbeef',
++      mockProof,
++    );
++  });
++
++  it('handles loadInitialAssets errors correctly', async () => {
++    // loadWasmModule에서 에러 발생하도록 설정
++    vi.mocked(wasmLoader.loadWasmModule).mockRejectedValueOnce(
++      new Error('WASM load failed'),
++    );
++
++    const { loadInitialAssets } = useGachaStore.getState();
++
++    // 함수 호출
++    await act(async () => {
++      await loadInitialAssets();
++    });
++
++    // 상태 확인
++    const state = useGachaStore.getState();
++    expect(state.isWasmInitialized).toBe(false);
++    expect(state.isKeysInitialized).toBe(false);
++    expect(state.initializationError).toBe('WASM load failed');
++  });
++
++  it('handles proof generation errors correctly', async () => {
++    // 스토어 초기화
++    useGachaStore.setState({
++      isKeysInitialized: true,
++      merkleRoot: 'deadbeef',
++      pullResult: {
++        itemIdHex: '0x1234',
++        secretKeyHex: '0xabcd',
++        merklePathNodesHex: ['0x1111', '0x2222'],
++        leafSiblingHashHex: '0x3333',
++        leafIndex: 0,
++        itemDetails: {
++          id: '0x1234',
++          name: 'Pikachu',
++          imageUrl: '/pokemon/pikachu.png',
++          rarity: 'rare',
++        },
++      },
++    });
++
++    // generateGachaProof에서 에러 발생하도록 설정
++    vi.mocked(wasmLoader.generateGachaProof).mockRejectedValueOnce(
++      new Error('Proof generation failed'),
++    );
++
++    const { generateProofForLastPull } = useGachaStore.getState();
++
++    // 증명 생성 시도
++    await act(async () => {
++      await generateProofForLastPull();
++    });
++
++    // 상태 확인
++    const state = useGachaStore.getState();
++    expect(state.isGeneratingProof).toBe(false);
++    expect(state.proof).toBeNull();
++    expect(state.proofGenerationError).toBe('Proof generation failed');
++  });
++});
+diff --git a/apps/web/app/gacha/page.tsx b/apps/web/app/gacha/page.tsx
+index 56e937e..d9684a4 100644
+--- a/apps/web/app/gacha/page.tsx
++++ b/apps/web/app/gacha/page.tsx
+@@ -2,11 +2,12 @@
+ 
+ import GachaDisplay from '@/components/gacha/GachaDisplay'; // 이 컴포넌트도 나중에 생성할 예정입니다
+ import { useGachaStore } from '@/stores/gachaStore'; // 이 파일은 나중에 생성할 예정입니다
++import type { GachaState } from '@/stores/gachaStore'; // Import the GachaState type
+ import { useEffect } from 'react';
+ 
+ export default function GachaPage() {
+   const { loadInitialAssets, isLoadingAssets, initializationError } =
+-    useGachaStore((state) => ({
++    useGachaStore((state: GachaState) => ({
+       loadInitialAssets: state.loadInitialAssets,
+       isLoadingAssets: state.isLoadingAssets,
+       initializationError: state.initializationError,
+@@ -15,11 +16,13 @@ export default function GachaPage() {
+   // Load assets once on component mount
+   useEffect(() => {
+     // isInitialized 값을 확인하여 이미 초기화된 경우 다시 호출하지 않음
+-    const { isKeysInitialized, isLoadingAssets } = useGachaStore.getState();
+-    if (!isKeysInitialized && !isLoadingAssets) {
++    const { isKeysInitialized, isLoadingAssets: currentLoadingState } =
++      useGachaStore.getState();
++    // Use the state from getState to ensure we check the absolute latest sync state before calling
++    if (!isKeysInitialized && !currentLoadingState) {
+       loadInitialAssets();
+     }
+-  }, []);
++  }, [loadInitialAssets]);
+ 
+   if (isLoadingAssets) {
+     return (
+diff --git a/apps/web/components/gacha/GachaDisplay.tsx b/apps/web/components/gacha/GachaDisplay.tsx
+index b00a120..687a31a 100644
+--- a/apps/web/components/gacha/GachaDisplay.tsx
++++ b/apps/web/components/gacha/GachaDisplay.tsx
+@@ -1,5 +1,6 @@
+ 'use client';
+ 
++import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+ import { Button } from '@/components/ui/button'; // Shadcn UI 버튼 컴포넌트 사용
+ import {
+   Card,
+@@ -9,7 +10,10 @@ import {
+   CardTitle,
+ } from '@/components/ui/card';
+ import { useGachaStore } from '@/stores/gachaStore';
+-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
++import { AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
++
++// 트랜지션 효과를 위한 스타일 정의
++const transitionStyle = 'transition-all duration-300 ease-in-out';
+ 
+ // Helper functions for Pokémon card styling
+ const getPokemonColorByRarity = (rarity: string): string => {
+@@ -73,18 +77,31 @@ export default function GachaDisplay() {
+     return (
+       <div className="flex items-center justify-center p-6">
+         <Loader2 className="w-6 h-6 animate-spin mr-2" />
+-        <p>Initializing cryptographic components...</p>
++        <p>
++          Initializing zero-knowledge proof system and cryptographic keys...
++        </p>
+       </div>
+     );
+   }
+ 
+   return (
+     <div className="flex flex-col items-center">
++      {/* Security Disclaimer */}
++      <Alert className="mb-6 max-w-md">
++        <AlertCircle className="h-4 w-4" />
++        <AlertTitle>Demo Environment</AlertTitle>
++        <AlertDescription>
++          This demo uses client-side proof generation for educational purposes.
++          In a production environment, proofs would be generated server-side for
++          proper security.
++        </AlertDescription>
++      </Alert>
++
+       {/* Pull Button */}
+       <Button
+         onClick={handlePull}
+         disabled={isPulling || isGeneratingProof || isVerifyingProof}
+-        className="mb-6 px-6 py-3 text-lg bg-red-500 hover:bg-red-600"
++        className={`mb-6 px-6 py-3 text-lg bg-red-500 hover:bg-red-600 ${transitionStyle}`}
+         size="lg"
+       >
+         {isPulling ? (
+@@ -97,21 +114,26 @@ export default function GachaDisplay() {
+         )}
+       </Button>
+ 
++      {/* Pull Error Display */}
+       {pullError && (
+-        <div className="text-red-500 mb-6 p-2 bg-red-50 rounded w-full max-w-md text-center">
+-          {pullError}
+-        </div>
++        <Alert variant="destructive" className="mb-6 max-w-md">
++          <AlertCircle className="h-4 w-4" />
++          <AlertTitle>Error</AlertTitle>
++          <AlertDescription>{pullError}</AlertDescription>
++        </Alert>
+       )}
+ 
+       {/* Result Display Area */}
+       {pullResult && !isPulling && (
+-        <Card className="w-full max-w-md">
++        <Card
++          className={`w-full max-w-md ${transitionStyle} ${proof ? 'shadow-lg' : 'shadow'}`}
++        >
+           <CardHeader>
+             <CardTitle className="text-center">You Pulled:</CardTitle>
+           </CardHeader>
+           <CardContent className="flex flex-col items-center">
+             <div
+-              className="w-40 h-56 mb-4 transform hover:scale-105 transition-transform duration-300 overflow-hidden rounded-lg border-4"
++              className={`w-40 h-56 mb-4 transform hover:scale-105 ${transitionStyle} overflow-hidden rounded-lg border-4`}
+               style={{
+                 borderColor: getPokemonColorByRarity(
+                   pullResult.itemDetails.rarity || 'common',
+@@ -148,22 +170,26 @@ export default function GachaDisplay() {
+               <Button
+                 onClick={handleGenerateProof}
+                 disabled={isGeneratingProof || isVerifyingProof}
+-                className="mb-2 w-full"
++                className={`mb-2 w-full ${transitionStyle}`}
+                 variant="outline"
+               >
+                 Generate Verification Proof
+               </Button>
+             )}
+             {isGeneratingProof && (
+-              <div className="flex items-center mb-2">
++              <div
++                className={`flex items-center justify-center mb-2 w-full p-2 ${transitionStyle}`}
++              >
+                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
+-                <p>Generating Proof...</p>
++                <p>Generating Zero-Knowledge Proof...</p>
+               </div>
+             )}
+             {proofGenerationError && (
+-              <div className="text-red-500 mb-2 text-sm">
+-                Proof Generation Error: {proofGenerationError}
+-              </div>
++              <Alert variant="destructive" className="mb-2">
++                <AlertCircle className="h-4 w-4" />
++                <AlertTitle>Proof Generation Failed</AlertTitle>
++                <AlertDescription>{proofGenerationError}</AlertDescription>
++              </Alert>
+             )}
+ 
+             {/* Proof Verification Button */}
+@@ -171,38 +197,48 @@ export default function GachaDisplay() {
+               <Button
+                 onClick={handleVerifyProof}
+                 disabled={isVerifyingProof}
+-                className="mb-2 w-full"
++                className={`mb-2 w-full ${transitionStyle}`}
+                 variant="outline"
+               >
+                 Verify Proof
+               </Button>
+             )}
+             {isVerifyingProof && (
+-              <div className="flex items-center mb-2">
++              <div
++                className={`flex items-center justify-center mb-2 w-full p-2 ${transitionStyle}`}
++              >
+                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
+-                <p>Verifying Proof...</p>
++                <p>Verifying Zero-Knowledge Proof...</p>
+               </div>
+             )}
+             {verificationError && (
+-              <div className="text-red-500 mb-2 text-sm">
+-                Verification Error: {verificationError}
+-              </div>
++              <Alert variant="destructive" className="mb-2">
++                <AlertCircle className="h-4 w-4" />
++                <AlertTitle>Verification Failed</AlertTitle>
++                <AlertDescription>{verificationError}</AlertDescription>
++              </Alert>
+             )}
+ 
+             {/* Verification Result */}
+             {verificationResult !== null && (
+               <div
+-                className={`flex items-center mb-2 ${verificationResult ? 'text-green-600' : 'text-red-600'}`}
++                className={`flex items-center justify-center mb-2 w-full p-3 rounded-md ${transitionStyle} ${
++                  verificationResult
++                    ? 'bg-green-50 text-green-600 border border-green-200'
++                    : 'bg-red-50 text-red-600 border border-red-200'
++                }`}
+               >
+                 {verificationResult ? (
+                   <>
+                     <CheckCircle2 className="w-5 h-5 mr-2" />
+-                    Verification Successful!
++                    <span className="font-medium">
++                      Verification Successful!
++                    </span>
+                   </>
+                 ) : (
+                   <>
+                     <XCircle className="w-5 h-5 mr-2" />
+-                    Verification Failed!
++                    <span className="font-medium">Verification Failed!</span>
+                   </>
+                 )}
+               </div>
+diff --git a/apps/web/components/ui/alert.tsx b/apps/web/components/ui/alert.tsx
+new file mode 100644
+index 0000000..ebfbb53
+--- /dev/null
++++ b/apps/web/components/ui/alert.tsx
+@@ -0,0 +1,59 @@
++import { type VariantProps, cva } from 'class-variance-authority';
++import * as React from 'react';
++
++import { cn } from '@/lib/utils';
++
++const alertVariants = cva(
++  'relative w-full rounded-lg border border-slate-200 p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-slate-950 dark:border-slate-800 dark:[&>svg]:text-slate-50',
++  {
++    variants: {
++      variant: {
++        default: 'bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-50',
++        destructive:
++          'border-red-500/50 text-red-500 dark:border-red-500 [&>svg]:text-red-500 dark:border-red-900/50 dark:text-red-900 dark:dark:border-red-900 dark:[&>svg]:text-red-900',
++      },
++    },
++    defaultVariants: {
++      variant: 'default',
++    },
++  },
++);
++
++const Alert = React.forwardRef<
++  HTMLDivElement,
++  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
++>(({ className, variant, ...props }, ref) => (
++  <div
++    ref={ref}
++    role="alert"
++    className={cn(alertVariants({ variant }), className)}
++    {...props}
++  />
++));
++Alert.displayName = 'Alert';
++
++const AlertTitle = React.forwardRef<
++  HTMLParagraphElement,
++  React.HTMLAttributes<HTMLHeadingElement>
++>(({ className, ...props }, ref) => (
++  <h5
++    ref={ref}
++    className={cn('mb-1 font-medium leading-none tracking-tight', className)}
++    {...props}
++  />
++));
++AlertTitle.displayName = 'AlertTitle';
++
++const AlertDescription = React.forwardRef<
++  HTMLParagraphElement,
++  React.HTMLAttributes<HTMLParagraphElement>
++>(({ className, ...props }, ref) => (
++  <div
++    ref={ref}
++    className={cn('text-sm [&_p]:leading-relaxed', className)}
++    {...props}
++  />
++));
++AlertDescription.displayName = 'AlertDescription';
++
++export { Alert, AlertTitle, AlertDescription };
+diff --git a/apps/web/lib/wasmLoader.ts b/apps/web/lib/wasmLoader.ts
+index 7316bb9..0c9be9e 100644
+--- a/apps/web/lib/wasmLoader.ts
++++ b/apps/web/lib/wasmLoader.ts
+@@ -109,18 +109,29 @@ export const initGachaKeys = async (
+ 
+ /**
+  * 제공된 입력에 대한 ZK-SNARK 증명을 생성합니다.
+- * @param inputsBytes 직렬화된 WasmGachaCircuitInputs 바이트 배열
++ * @param inputs WasmGachaCircuitInputs와 일치하는 JavaScript 객체
+  * @returns 직렬화된 증명 바이트 배열
+  */
++// Define input type for generateGachaProof
++interface GachaCircuitInputs {
++  merkleRoot: string;
++  itemIdHex: string;
++  secretKeyHex: string;
++  merklePathNodesHex: string[];
++  leafSiblingHashHex: string;
++  leafIndex: number;
++}
++
+ export const generateGachaProof = async (
+-  inputsBytes: Uint8Array, // 이제 바이트 배열을 직접 받습니다.
++  inputs: GachaCircuitInputs,
+ ): Promise<Uint8Array> => {
+   const wasm = await loadWasmModule();
+   if (typeof wasm.generate_gacha_proof !== 'function') {
+     throw new Error("WASM module does not export 'generate_gacha_proof'");
+   }
+-  // WASM 함수에 바이트 배열 전달
+-  return wasm.generate_gacha_proof(inputsBytes);
++  // WASM 함수에 JavaScript 객체 직접 전달
++  // serde_wasm_bindgen이 JsValue -> WasmGachaCircuitInputs 변환을 처리함
++  return wasm.generate_gacha_proof(inputs);
+ };
+ 
+ /**
+diff --git a/apps/web/next-env.d.ts b/apps/web/next-env.d.ts
+index 4f11a03..1b3be08 100644
+--- a/apps/web/next-env.d.ts
++++ b/apps/web/next-env.d.ts
+@@ -2,4 +2,4 @@
+ /// <reference types="next/image-types/global" />
+ 
+ // NOTE: This file should not be edited
+-// see https://nextjs.org/docs/basic-features/typescript for more information.
++// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+diff --git a/apps/web/package.json b/apps/web/package.json
+index 594f1b7..31ae314 100644
+--- a/apps/web/package.json
++++ b/apps/web/package.json
+@@ -17,7 +17,7 @@
+     "class-variance-authority": "^0.7.0",
+     "clsx": "^2.1.0",
+     "lucide-react": "^0.344.0",
+-    "next": "14.1.3",
++    "next": "15.2.4",
+     "react": "^18",
+     "react-dom": "^18",
+     "tailwind-merge": "^2.2.1",
+diff --git a/apps/web/stores/gachaStore.ts b/apps/web/stores/gachaStore.ts
+index d2b062b..b453693 100644
+--- a/apps/web/stores/gachaStore.ts
++++ b/apps/web/stores/gachaStore.ts
+@@ -14,7 +14,7 @@ import {
+ } from '@/lib/wasmLoader'; // Adjust path if needed
+ 
+ // Define types for clarity within the store
+-interface ItemDetails {
++export interface ItemDetails {
+   id: string;
+   name: string;
+   imageUrl: string;
+@@ -32,7 +32,7 @@ interface PullResultData {
+ }
+ 
+ // The complete state managed by Zustand
+-interface GachaState {
++export interface GachaState {
+   // --- Static Assets & Initialization Status ---
+   merkleRoot: string | null;
+   itemMasterData: Record<string, ItemDetails> | null;
+@@ -98,7 +98,7 @@ export const useGachaStore = create<GachaState>()(
+           console.log('Assets already loading or initialized.');
+           return;
+         }
+-        
++
+         // 로딩 상태에 따라서만 상태 변경
+         set({ isLoadingAssets: true, initializationError: null });
+         console.log('Starting initial asset load...');
+@@ -298,7 +298,6 @@ export const useGachaStore = create<GachaState>()(
+           // This needs to exactly match the structure expected by the Rust
+           // function that uses #[wasm_bindgen] and serde_wasm_bindgen::from_value
+           const wasmInputs = {
+-            // No need to explicitly type if TS knows the WASM function signature
+             merkleRoot: merkleRoot,
+             itemIdHex: pullResult.itemIdHex,
+             secretKeyHex: pullResult.secretKeyHex,
+@@ -308,18 +307,9 @@ export const useGachaStore = create<GachaState>()(
+           };
+           console.log('Inputs for proof generation (JS Object):', wasmInputs);
+ 
+-          let inputsBytes: Uint8Array;
+-          try {
+-            const jsonString = JSON.stringify(wasmInputs);
+-            inputsBytes = new TextEncoder().encode(jsonString);
+-          } catch (serializationError) {
+-            throw new Error(
+-              `Input serialization error: ${serializationError instanceof Error ? serializationError.message : String(serializationError)}`,
+-            );
+-          }
+-
+-          // Call the WASM function via the loader's export
+-          const proofBytes: Uint8Array = await generateGachaProof(inputsBytes);
++          // 변경된 부분: 객체를 직접 전달
++          // JSON 문자열 변환 및 Uint8Array 변환 단계를 제거
++          const proofBytes: Uint8Array = await generateGachaProof(wasmInputs);
+ 
+           set({ proof: proofBytes, isGeneratingProof: false });
+           console.log(
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 74096b9..de80a5d 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -33,8 +33,8 @@ importers:
+         specifier: ^0.344.0
+         version: 0.344.0(react@18.3.1)
+       next:
+-        specifier: 14.1.3
+-        version: 14.1.3(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
++        specifier: 15.2.4
++        version: 15.2.4(@babel/core@7.26.10)(@playwright/test@1.51.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+       react:
+         specifier: ^18
+         version: 18.3.1
+@@ -281,6 +281,9 @@ packages:
+     resolution: {integrity: sha512-UJnjoFsmxfKUdNYdWgOB0mWUypuLvAfQPH1+pyvRJs6euowbFkFC6P13w1l8mJyi3vxYMxc9kld5jZEGRQs6bw==}
+     engines: {node: '>=18'}
+ 
++  '@emnapi/runtime@1.4.0':
++    resolution: {integrity: sha512-64WYIf4UYcdLnbKn/umDlNjQDSS8AgZrI/R9+x5ilkUVFxXcA1Ebl+gQLc/6mERA4407Xof0R7wEyEuj091CVw==}
++
+   '@esbuild/aix-ppc64@0.21.5':
+     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
+     engines: {node: '>=12'}
+@@ -419,6 +422,111 @@ packages:
+     cpu: [x64]
+     os: [win32]
+ 
++  '@img/sharp-darwin-arm64@0.33.5':
++    resolution: {integrity: sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [arm64]
++    os: [darwin]
++
++  '@img/sharp-darwin-x64@0.33.5':
++    resolution: {integrity: sha512-fyHac4jIc1ANYGRDxtiqelIbdWkIuQaI84Mv45KvGRRxSAa7o7d1ZKAOBaYbnepLC1WqxfpimdeWfvqqSGwR2Q==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [x64]
++    os: [darwin]
++
++  '@img/sharp-libvips-darwin-arm64@1.0.4':
++    resolution: {integrity: sha512-XblONe153h0O2zuFfTAbQYAX2JhYmDHeWikp1LM9Hul9gVPjFY427k6dFEcOL72O01QxQsWi761svJ/ev9xEDg==}
++    cpu: [arm64]
++    os: [darwin]
++
++  '@img/sharp-libvips-darwin-x64@1.0.4':
++    resolution: {integrity: sha512-xnGR8YuZYfJGmWPvmlunFaWJsb9T/AO2ykoP3Fz/0X5XV2aoYBPkX6xqCQvUTKKiLddarLaxpzNe+b1hjeWHAQ==}
++    cpu: [x64]
++    os: [darwin]
++
++  '@img/sharp-libvips-linux-arm64@1.0.4':
++    resolution: {integrity: sha512-9B+taZ8DlyyqzZQnoeIvDVR/2F4EbMepXMc/NdVbkzsJbzkUjhXv/70GQJ7tdLA4YJgNP25zukcxpX2/SueNrA==}
++    cpu: [arm64]
++    os: [linux]
++
++  '@img/sharp-libvips-linux-arm@1.0.5':
++    resolution: {integrity: sha512-gvcC4ACAOPRNATg/ov8/MnbxFDJqf/pDePbBnuBDcjsI8PssmjoKMAz4LtLaVi+OnSb5FK/yIOamqDwGmXW32g==}
++    cpu: [arm]
++    os: [linux]
++
++  '@img/sharp-libvips-linux-s390x@1.0.4':
++    resolution: {integrity: sha512-u7Wz6ntiSSgGSGcjZ55im6uvTrOxSIS8/dgoVMoiGE9I6JAfU50yH5BoDlYA1tcuGS7g/QNtetJnxA6QEsCVTA==}
++    cpu: [s390x]
++    os: [linux]
++
++  '@img/sharp-libvips-linux-x64@1.0.4':
++    resolution: {integrity: sha512-MmWmQ3iPFZr0Iev+BAgVMb3ZyC4KeFc3jFxnNbEPas60e1cIfevbtuyf9nDGIzOaW9PdnDciJm+wFFaTlj5xYw==}
++    cpu: [x64]
++    os: [linux]
++
++  '@img/sharp-libvips-linuxmusl-arm64@1.0.4':
++    resolution: {integrity: sha512-9Ti+BbTYDcsbp4wfYib8Ctm1ilkugkA/uscUn6UXK1ldpC1JjiXbLfFZtRlBhjPZ5o1NCLiDbg8fhUPKStHoTA==}
++    cpu: [arm64]
++    os: [linux]
++
++  '@img/sharp-libvips-linuxmusl-x64@1.0.4':
++    resolution: {integrity: sha512-viYN1KX9m+/hGkJtvYYp+CCLgnJXwiQB39damAO7WMdKWlIhmYTfHjwSbQeUK/20vY154mwezd9HflVFM1wVSw==}
++    cpu: [x64]
++    os: [linux]
++
++  '@img/sharp-linux-arm64@0.33.5':
++    resolution: {integrity: sha512-JMVv+AMRyGOHtO1RFBiJy/MBsgz0x4AWrT6QoEVVTyh1E39TrCUpTRI7mx9VksGX4awWASxqCYLCV4wBZHAYxA==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [arm64]
++    os: [linux]
++
++  '@img/sharp-linux-arm@0.33.5':
++    resolution: {integrity: sha512-JTS1eldqZbJxjvKaAkxhZmBqPRGmxgu+qFKSInv8moZ2AmT5Yib3EQ1c6gp493HvrvV8QgdOXdyaIBrhvFhBMQ==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [arm]
++    os: [linux]
++
++  '@img/sharp-linux-s390x@0.33.5':
++    resolution: {integrity: sha512-y/5PCd+mP4CA/sPDKl2961b+C9d+vPAveS33s6Z3zfASk2j5upL6fXVPZi7ztePZ5CuH+1kW8JtvxgbuXHRa4Q==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [s390x]
++    os: [linux]
++
++  '@img/sharp-linux-x64@0.33.5':
++    resolution: {integrity: sha512-opC+Ok5pRNAzuvq1AG0ar+1owsu842/Ab+4qvU879ippJBHvyY5n2mxF1izXqkPYlGuP/M556uh53jRLJmzTWA==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [x64]
++    os: [linux]
++
++  '@img/sharp-linuxmusl-arm64@0.33.5':
++    resolution: {integrity: sha512-XrHMZwGQGvJg2V/oRSUfSAfjfPxO+4DkiRh6p2AFjLQztWUuY/o8Mq0eMQVIY7HJ1CDQUJlxGGZRw1a5bqmd1g==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [arm64]
++    os: [linux]
++
++  '@img/sharp-linuxmusl-x64@0.33.5':
++    resolution: {integrity: sha512-WT+d/cgqKkkKySYmqoZ8y3pxx7lx9vVejxW/W4DOFMYVSkErR+w7mf2u8m/y4+xHe7yY9DAXQMWQhpnMuFfScw==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [x64]
++    os: [linux]
++
++  '@img/sharp-wasm32@0.33.5':
++    resolution: {integrity: sha512-ykUW4LVGaMcU9lu9thv85CbRMAwfeadCJHRsg2GmeRa/cJxsVY9Rbd57JcMxBkKHag5U/x7TSBpScF4U8ElVzg==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [wasm32]
++
++  '@img/sharp-win32-ia32@0.33.5':
++    resolution: {integrity: sha512-T36PblLaTwuVJ/zw/LaH0PdZkRz5rd3SmMHX8GSmR7vtNSP5Z6bQkExdSK7xGWyxLw4sUknBuugTelgw2faBbQ==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [ia32]
++    os: [win32]
++
++  '@img/sharp-win32-x64@0.33.5':
++    resolution: {integrity: sha512-MpY/o8/8kj+EcnxwvrP4aTJSWw/aZ7JIGR4aBeZkZw5B7/Jn+tY9/VNwtcoGmdT7GfggGIU4kygOMSbYnOrAbg==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++    cpu: [x64]
++    os: [win32]
++
+   '@isaacs/cliui@8.0.2':
+     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
+     engines: {node: '>=12'}
+@@ -448,59 +556,53 @@ packages:
+   '@jridgewell/trace-mapping@0.3.25':
+     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
+ 
+-  '@next/env@14.1.3':
+-    resolution: {integrity: sha512-VhgXTvrgeBRxNPjyfBsDIMvgsKDxjlpw4IAUsHCX8Gjl1vtHUYRT3+xfQ/wwvLPDd/6kqfLqk9Pt4+7gysuCKQ==}
++  '@next/env@15.2.4':
++    resolution: {integrity: sha512-+SFtMgoiYP3WoSswuNmxJOCwi06TdWE733D+WPjpXIe4LXGULwEaofiiAy6kbS0+XjM5xF5n3lKuBwN2SnqD9g==}
+ 
+-  '@next/swc-darwin-arm64@14.1.3':
+-    resolution: {integrity: sha512-LALu0yIBPRiG9ANrD5ncB3pjpO0Gli9ZLhxdOu6ZUNf3x1r3ea1rd9Q+4xxUkGrUXLqKVK9/lDkpYIJaCJ6AHQ==}
++  '@next/swc-darwin-arm64@15.2.4':
++    resolution: {integrity: sha512-1AnMfs655ipJEDC/FHkSr0r3lXBgpqKo4K1kiwfUf3iE68rDFXZ1TtHdMvf7D0hMItgDZ7Vuq3JgNMbt/+3bYw==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [darwin]
+ 
+-  '@next/swc-darwin-x64@14.1.3':
+-    resolution: {integrity: sha512-E/9WQeXxkqw2dfcn5UcjApFgUq73jqNKaE5bysDm58hEUdUGedVrnRhblhJM7HbCZNhtVl0j+6TXsK0PuzXTCg==}
++  '@next/swc-darwin-x64@15.2.4':
++    resolution: {integrity: sha512-3qK2zb5EwCwxnO2HeO+TRqCubeI/NgCe+kL5dTJlPldV/uwCnUgC7VbEzgmxbfrkbjehL4H9BPztWOEtsoMwew==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [darwin]
+ 
+-  '@next/swc-linux-arm64-gnu@14.1.3':
+-    resolution: {integrity: sha512-USArX9B+3rZSXYLFvgy0NVWQgqh6LHWDmMt38O4lmiJNQcwazeI6xRvSsliDLKt+78KChVacNiwvOMbl6g6BBw==}
++  '@next/swc-linux-arm64-gnu@15.2.4':
++    resolution: {integrity: sha512-HFN6GKUcrTWvem8AZN7tT95zPb0GUGv9v0d0iyuTb303vbXkkbHDp/DxufB04jNVD+IN9yHy7y/6Mqq0h0YVaQ==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [linux]
+ 
+-  '@next/swc-linux-arm64-musl@14.1.3':
+-    resolution: {integrity: sha512-esk1RkRBLSIEp1qaQXv1+s6ZdYzuVCnDAZySpa62iFTMGTisCyNQmqyCTL9P+cLJ4N9FKCI3ojtSfsyPHJDQNw==}
++  '@next/swc-linux-arm64-musl@15.2.4':
++    resolution: {integrity: sha512-Oioa0SORWLwi35/kVB8aCk5Uq+5/ZIumMK1kJV+jSdazFm2NzPDztsefzdmzzpx5oGCJ6FkUC7vkaUseNTStNA==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [linux]
+ 
+-  '@next/swc-linux-x64-gnu@14.1.3':
+-    resolution: {integrity: sha512-8uOgRlYEYiKo0L8YGeS+3TudHVDWDjPVDUcST+z+dUzgBbTEwSSIaSgF/vkcC1T/iwl4QX9iuUyUdQEl0Kxalg==}
++  '@next/swc-linux-x64-gnu@15.2.4':
++    resolution: {integrity: sha512-yb5WTRaHdkgOqFOZiu6rHV1fAEK0flVpaIN2HB6kxHVSy/dIajWbThS7qON3W9/SNOH2JWkVCyulgGYekMePuw==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [linux]
+ 
+-  '@next/swc-linux-x64-musl@14.1.3':
+-    resolution: {integrity: sha512-DX2zqz05ziElLoxskgHasaJBREC5Y9TJcbR2LYqu4r7naff25B4iXkfXWfcp69uD75/0URmmoSgT8JclJtrBoQ==}
++  '@next/swc-linux-x64-musl@15.2.4':
++    resolution: {integrity: sha512-Dcdv/ix6srhkM25fgXiyOieFUkz+fOYkHlydWCtB0xMST6X9XYI3yPDKBZt1xuhOytONsIFJFB08xXYsxUwJLw==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [linux]
+ 
+-  '@next/swc-win32-arm64-msvc@14.1.3':
+-    resolution: {integrity: sha512-HjssFsCdsD4GHstXSQxsi2l70F/5FsRTRQp8xNgmQs15SxUfUJRvSI9qKny/jLkY3gLgiCR3+6A7wzzK0DBlfA==}
++  '@next/swc-win32-arm64-msvc@15.2.4':
++    resolution: {integrity: sha512-dW0i7eukvDxtIhCYkMrZNQfNicPDExt2jPb9AZPpL7cfyUo7QSNl1DjsHjmmKp6qNAqUESyT8YFl/Aw91cNJJg==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [win32]
+ 
+-  '@next/swc-win32-ia32-msvc@14.1.3':
+-    resolution: {integrity: sha512-DRuxD5axfDM1/Ue4VahwSxl1O5rn61hX8/sF0HY8y0iCbpqdxw3rB3QasdHn/LJ6Wb2y5DoWzXcz3L1Cr+Thrw==}
+-    engines: {node: '>= 10'}
+-    cpu: [ia32]
+-    os: [win32]
+-
+-  '@next/swc-win32-x64-msvc@14.1.3':
+-    resolution: {integrity: sha512-uC2DaDoWH7h1P/aJ4Fok3Xiw6P0Lo4ez7NbowW2VGNXw/Xv6tOuLUcxhBYZxsSUJtpeknCi8/fvnSpyCFp4Rcg==}
++  '@next/swc-win32-x64-msvc@15.2.4':
++    resolution: {integrity: sha512-SbnWkJmkS7Xl3kre8SdMF6F/XDh1DTFEhp0jRTj/uB8iPKoU2bb2NDfcu+iifv1+mxQEd1g2vvSxcZbXSKyWiQ==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [win32]
+@@ -647,8 +749,11 @@ packages:
+   '@sinclair/typebox@0.27.8':
+     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
+ 
+-  '@swc/helpers@0.5.2':
+-    resolution: {integrity: sha512-E4KcWTpoLHqwPHLxidpOqQbcrZVgi0rsmmZXUle1jXmJfuIf/UWpczUJ7MZZ5tlxytgJXyp0w4PGkkeLiuIdZw==}
++  '@swc/counter@0.1.3':
++    resolution: {integrity: sha512-e2BR4lsJkkRlKZ/qCHPw9ZaSxc0MVUd7gtbtaB7aMvHeJVYe8sOB8DBZkP2DtISHGSku9sCK6T6cnY0CtXrOCQ==}
++
++  '@swc/helpers@0.5.15':
++    resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+ 
+   '@testing-library/dom@9.3.4':
+     resolution: {integrity: sha512-FlS4ZWlp97iiNWig0Muq8p+3rVDjRiYE+YKGbAqXOu9nwJFFOdL00kFpz42M+4huzYi86vAK1sOOfyOG45muIQ==}
+@@ -844,6 +949,9 @@ packages:
+   caniuse-lite@1.0.30001711:
+     resolution: {integrity: sha512-OpFA8GsKtoV3lCcsI3U5XBAV+oVrMu96OS8XafKqnhOaEAW2mveD1Mx81Sx/02chERwhDakuXs28zbyEc4QMKg==}
+ 
++  caniuse-lite@1.0.30001712:
++    resolution: {integrity: sha512-MBqPpGYYdQ7/hfKiet9SCI+nmN5/hp4ZzveOJubl5DTAMa5oggjAuoi0Z4onBpKPFI2ePGnQuQIzF3VxDjDJig==}
++
+   chai@4.5.0:
+     resolution: {integrity: sha512-RITGBfijLkBddZvnn8jdqoTypxvqbOLYQkGGxXzeFjVHvudaPw0HNFD9x928/eUwYWd2dPCugVqspGALTZZQKw==}
+     engines: {node: '>=4'}
+@@ -880,6 +988,13 @@ packages:
+   color-name@1.1.4:
+     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+ 
++  color-string@1.9.1:
++    resolution: {integrity: sha512-shrVawQFojnZv6xM40anx4CkoDP+fZsw/ZerEMsW/pyzsRbElpsL/DBVW7q3ExxwusdNXI3lXpuhEZkzs8p5Eg==}
++
++  color@4.2.3:
++    resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
++    engines: {node: '>=12.5.0'}
++
+   combined-stream@1.0.8:
+     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
+     engines: {node: '>= 0.8'}
+@@ -952,6 +1067,10 @@ packages:
+     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
+     engines: {node: '>=0.4.0'}
+ 
++  detect-libc@2.0.3:
++    resolution: {integrity: sha512-bwy0MGW55bG41VqxxypOsdSdGqLwXPI/focwgTYCFMbdUiBAxLg9CFzG08sz2aqzknwiX7Hkl0bQENjg8iLByw==}
++    engines: {node: '>=8'}
++
+   didyoumean@1.2.2:
+     resolution: {integrity: sha512-gxtyfqMg7GKyhQmb056K7M3xszy/myH8w+B4RT+QXBQsvAOdc3XymqDDPHx1BgPgsdAA5SIifona89YtRATDzw==}
+ 
+@@ -1104,9 +1223,6 @@ packages:
+     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
+     engines: {node: '>= 0.4'}
+ 
+-  graceful-fs@4.2.11:
+-    resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+-
+   has-bigints@1.1.0:
+     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
+     engines: {node: '>= 0.4'}
+@@ -1166,6 +1282,9 @@ packages:
+     resolution: {integrity: sha512-DDfANUiiG2wC1qawP66qlTugJeL5HyzMpfr8lLK+jMQirGzNod0B12cFB/9q838Ru27sBwfw78/rdoU7RERz6A==}
+     engines: {node: '>= 0.4'}
+ 
++  is-arrayish@0.3.2:
++    resolution: {integrity: sha512-eVRqCvVlZbuw3GrM63ovNSNAeA1K16kaR/LRY/92w0zxQ5/1YzwblUX652i4Xs9RwAGjW9d9y6X88t8OaAJfWQ==}
++
+   is-bigint@1.1.0:
+     resolution: {integrity: sha512-n4ZT37wG78iz03xPRKJrHTdZbe3IicyucEtdRsV5yglwc3GyUfbAfpSeD0FJ41NbUNSt5wbhqfp1fS+BgnvDFQ==}
+     engines: {node: '>= 0.4'}
+@@ -1379,18 +1498,24 @@ packages:
+     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+     hasBin: true
+ 
+-  next@14.1.3:
+-    resolution: {integrity: sha512-oexgMV2MapI0UIWiXKkixF8J8ORxpy64OuJ/J9oVUmIthXOUCcuVEZX+dtpgq7wIfIqtBwQsKEDXejcjTsan9g==}
+-    engines: {node: '>=18.17.0'}
++  next@15.2.4:
++    resolution: {integrity: sha512-VwL+LAaPSxEkd3lU2xWbgEOtrM8oedmyhBqaVNmgKB+GvZlCy9rgaEc+y2on0wv+l0oSFqLtYD6dcC1eAedUaQ==}
++    engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+     hasBin: true
+     peerDependencies:
+       '@opentelemetry/api': ^1.1.0
+-      react: ^18.2.0
+-      react-dom: ^18.2.0
++      '@playwright/test': ^1.41.2
++      babel-plugin-react-compiler: '*'
++      react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
++      react-dom: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
+       sass: ^1.3.0
+     peerDependenciesMeta:
+       '@opentelemetry/api':
+         optional: true
++      '@playwright/test':
++        optional: true
++      babel-plugin-react-compiler:
++        optional: true
+       sass:
+         optional: true
+ 
+@@ -1653,6 +1778,11 @@ packages:
+     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
+     hasBin: true
+ 
++  semver@7.7.1:
++    resolution: {integrity: sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA==}
++    engines: {node: '>=10'}
++    hasBin: true
++
+   set-function-length@1.2.2:
+     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
+     engines: {node: '>= 0.4'}
+@@ -1661,6 +1791,10 @@ packages:
+     resolution: {integrity: sha512-7PGFlmtwsEADb0WYyvCMa1t+yke6daIG4Wirafur5kcf+MhUnPms1UeR0CKQdTZD81yESwMHbtn+TR+dMviakQ==}
+     engines: {node: '>= 0.4'}
+ 
++  sharp@0.33.5:
++    resolution: {integrity: sha512-haPVm1EkS9pgvHrQ/F3Xy+hgcuMV0Wm9vfIBSiwZ05k+xgb0PkBQpGsAA/oWdDobNaZTH5ppvHtzCFbnSEwHVw==}
++    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++
+   shebang-command@2.0.0:
+     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
+     engines: {node: '>=8'}
+@@ -1692,6 +1826,9 @@ packages:
+     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
+     engines: {node: '>=14'}
+ 
++  simple-swizzle@0.2.2:
++    resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
++
+   source-map-js@1.2.1:
+     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+     engines: {node: '>=0.10.0'}
+@@ -1744,13 +1881,13 @@ packages:
+   strip-literal@2.1.1:
+     resolution: {integrity: sha512-631UJ6O00eNGfMiWG78ck80dfBab8X6IVFB51jZK5Icd7XAs60Z5y7QdSd/wGIklnWvRbUNloVzhOKKmutxQ6Q==}
+ 
+-  styled-jsx@5.1.1:
+-    resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
++  styled-jsx@5.1.6:
++    resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
+     engines: {node: '>= 12.0.0'}
+     peerDependencies:
+       '@babel/core': '*'
+       babel-plugin-macros: '*'
+-      react: '>= 16.8.0 || 17.x.x || ^18.0.0-0'
++      react: '>= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0'
+     peerDependenciesMeta:
+       '@babel/core':
+         optional: true
+@@ -2240,6 +2377,11 @@ snapshots:
+ 
+   '@csstools/css-tokenizer@3.0.3': {}
+ 
++  '@emnapi/runtime@1.4.0':
++    dependencies:
++      tslib: 2.8.1
++    optional: true
++
+   '@esbuild/aix-ppc64@0.21.5':
+     optional: true
+ 
+@@ -2309,6 +2451,81 @@ snapshots:
+   '@esbuild/win32-x64@0.21.5':
+     optional: true
+ 
++  '@img/sharp-darwin-arm64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-darwin-arm64': 1.0.4
++    optional: true
++
++  '@img/sharp-darwin-x64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-darwin-x64': 1.0.4
++    optional: true
++
++  '@img/sharp-libvips-darwin-arm64@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-darwin-x64@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-linux-arm64@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-linux-arm@1.0.5':
++    optional: true
++
++  '@img/sharp-libvips-linux-s390x@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-linux-x64@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-linuxmusl-arm64@1.0.4':
++    optional: true
++
++  '@img/sharp-libvips-linuxmusl-x64@1.0.4':
++    optional: true
++
++  '@img/sharp-linux-arm64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linux-arm64': 1.0.4
++    optional: true
++
++  '@img/sharp-linux-arm@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linux-arm': 1.0.5
++    optional: true
++
++  '@img/sharp-linux-s390x@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linux-s390x': 1.0.4
++    optional: true
++
++  '@img/sharp-linux-x64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linux-x64': 1.0.4
++    optional: true
++
++  '@img/sharp-linuxmusl-arm64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linuxmusl-arm64': 1.0.4
++    optional: true
++
++  '@img/sharp-linuxmusl-x64@0.33.5':
++    optionalDependencies:
++      '@img/sharp-libvips-linuxmusl-x64': 1.0.4
++    optional: true
++
++  '@img/sharp-wasm32@0.33.5':
++    dependencies:
++      '@emnapi/runtime': 1.4.0
++    optional: true
++
++  '@img/sharp-win32-ia32@0.33.5':
++    optional: true
++
++  '@img/sharp-win32-x64@0.33.5':
++    optional: true
++
+   '@isaacs/cliui@8.0.2':
+     dependencies:
+       string-width: 5.1.2
+@@ -2345,33 +2562,30 @@ snapshots:
+       '@jridgewell/resolve-uri': 3.1.2
+       '@jridgewell/sourcemap-codec': 1.5.0
+ 
+-  '@next/env@14.1.3': {}
+-
+-  '@next/swc-darwin-arm64@14.1.3':
+-    optional: true
++  '@next/env@15.2.4': {}
+ 
+-  '@next/swc-darwin-x64@14.1.3':
++  '@next/swc-darwin-arm64@15.2.4':
+     optional: true
+ 
+-  '@next/swc-linux-arm64-gnu@14.1.3':
++  '@next/swc-darwin-x64@15.2.4':
+     optional: true
+ 
+-  '@next/swc-linux-arm64-musl@14.1.3':
++  '@next/swc-linux-arm64-gnu@15.2.4':
+     optional: true
+ 
+-  '@next/swc-linux-x64-gnu@14.1.3':
++  '@next/swc-linux-arm64-musl@15.2.4':
+     optional: true
+ 
+-  '@next/swc-linux-x64-musl@14.1.3':
++  '@next/swc-linux-x64-gnu@15.2.4':
+     optional: true
+ 
+-  '@next/swc-win32-arm64-msvc@14.1.3':
++  '@next/swc-linux-x64-musl@15.2.4':
+     optional: true
+ 
+-  '@next/swc-win32-ia32-msvc@14.1.3':
++  '@next/swc-win32-arm64-msvc@15.2.4':
+     optional: true
+ 
+-  '@next/swc-win32-x64-msvc@14.1.3':
++  '@next/swc-win32-x64-msvc@15.2.4':
+     optional: true
+ 
+   '@nodelib/fs.scandir@2.1.5':
+@@ -2468,7 +2682,9 @@ snapshots:
+ 
+   '@sinclair/typebox@0.27.8': {}
+ 
+-  '@swc/helpers@0.5.2':
++  '@swc/counter@0.1.3': {}
++
++  '@swc/helpers@0.5.15':
+     dependencies:
+       tslib: 2.8.1
+ 
+@@ -2694,6 +2910,8 @@ snapshots:
+ 
+   caniuse-lite@1.0.30001711: {}
+ 
++  caniuse-lite@1.0.30001712: {}
++
+   chai@4.5.0:
+     dependencies:
+       assertion-error: 1.1.0
+@@ -2744,6 +2962,18 @@ snapshots:
+ 
+   color-name@1.1.4: {}
+ 
++  color-string@1.9.1:
++    dependencies:
++      color-name: 1.1.4
++      simple-swizzle: 0.2.2
++    optional: true
++
++  color@4.2.3:
++    dependencies:
++      color-convert: 2.0.1
++      color-string: 1.9.1
++    optional: true
++
+   combined-stream@1.0.8:
+     dependencies:
+       delayed-stream: 1.0.0
+@@ -2824,6 +3054,9 @@ snapshots:
+ 
+   delayed-stream@1.0.0: {}
+ 
++  detect-libc@2.0.3:
++    optional: true
++
+   didyoumean@1.2.2: {}
+ 
+   diff-sequences@29.6.3: {}
+@@ -3010,8 +3243,6 @@ snapshots:
+ 
+   gopd@1.2.0: {}
+ 
+-  graceful-fs@4.2.11: {}
+-
+   has-bigints@1.1.0: {}
+ 
+   has-flag@4.0.0: {}
+@@ -3073,6 +3304,9 @@ snapshots:
+       call-bound: 1.0.4
+       get-intrinsic: 1.3.0
+ 
++  is-arrayish@0.3.2:
++    optional: true
++
+   is-bigint@1.1.0:
+     dependencies:
+       has-bigints: 1.1.0
+@@ -3276,27 +3510,28 @@ snapshots:
+ 
+   nanoid@3.3.11: {}
+ 
+-  next@14.1.3(@babel/core@7.26.10)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
++  next@15.2.4(@babel/core@7.26.10)(@playwright/test@1.51.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+     dependencies:
+-      '@next/env': 14.1.3
+-      '@swc/helpers': 0.5.2
++      '@next/env': 15.2.4
++      '@swc/counter': 0.1.3
++      '@swc/helpers': 0.5.15
+       busboy: 1.6.0
+-      caniuse-lite: 1.0.30001711
+-      graceful-fs: 4.2.11
++      caniuse-lite: 1.0.30001712
+       postcss: 8.4.31
+       react: 18.3.1
+       react-dom: 18.3.1(react@18.3.1)
+-      styled-jsx: 5.1.1(@babel/core@7.26.10)(react@18.3.1)
++      styled-jsx: 5.1.6(@babel/core@7.26.10)(react@18.3.1)
+     optionalDependencies:
+-      '@next/swc-darwin-arm64': 14.1.3
+-      '@next/swc-darwin-x64': 14.1.3
+-      '@next/swc-linux-arm64-gnu': 14.1.3
+-      '@next/swc-linux-arm64-musl': 14.1.3
+-      '@next/swc-linux-x64-gnu': 14.1.3
+-      '@next/swc-linux-x64-musl': 14.1.3
+-      '@next/swc-win32-arm64-msvc': 14.1.3
+-      '@next/swc-win32-ia32-msvc': 14.1.3
+-      '@next/swc-win32-x64-msvc': 14.1.3
++      '@next/swc-darwin-arm64': 15.2.4
++      '@next/swc-darwin-x64': 15.2.4
++      '@next/swc-linux-arm64-gnu': 15.2.4
++      '@next/swc-linux-arm64-musl': 15.2.4
++      '@next/swc-linux-x64-gnu': 15.2.4
++      '@next/swc-linux-x64-musl': 15.2.4
++      '@next/swc-win32-arm64-msvc': 15.2.4
++      '@next/swc-win32-x64-msvc': 15.2.4
++      '@playwright/test': 1.51.1
++      sharp: 0.33.5
+     transitivePeerDependencies:
+       - '@babel/core'
+       - babel-plugin-macros
+@@ -3557,6 +3792,9 @@ snapshots:
+ 
+   semver@6.3.1: {}
+ 
++  semver@7.7.1:
++    optional: true
++
+   set-function-length@1.2.2:
+     dependencies:
+       define-data-property: 1.1.4
+@@ -3573,6 +3811,33 @@ snapshots:
+       functions-have-names: 1.2.3
+       has-property-descriptors: 1.0.2
+ 
++  sharp@0.33.5:
++    dependencies:
++      color: 4.2.3
++      detect-libc: 2.0.3
++      semver: 7.7.1
++    optionalDependencies:
++      '@img/sharp-darwin-arm64': 0.33.5
++      '@img/sharp-darwin-x64': 0.33.5
++      '@img/sharp-libvips-darwin-arm64': 1.0.4
++      '@img/sharp-libvips-darwin-x64': 1.0.4
++      '@img/sharp-libvips-linux-arm': 1.0.5
++      '@img/sharp-libvips-linux-arm64': 1.0.4
++      '@img/sharp-libvips-linux-s390x': 1.0.4
++      '@img/sharp-libvips-linux-x64': 1.0.4
++      '@img/sharp-libvips-linuxmusl-arm64': 1.0.4
++      '@img/sharp-libvips-linuxmusl-x64': 1.0.4
++      '@img/sharp-linux-arm': 0.33.5
++      '@img/sharp-linux-arm64': 0.33.5
++      '@img/sharp-linux-s390x': 0.33.5
++      '@img/sharp-linux-x64': 0.33.5
++      '@img/sharp-linuxmusl-arm64': 0.33.5
++      '@img/sharp-linuxmusl-x64': 0.33.5
++      '@img/sharp-wasm32': 0.33.5
++      '@img/sharp-win32-ia32': 0.33.5
++      '@img/sharp-win32-x64': 0.33.5
++    optional: true
++
+   shebang-command@2.0.0:
+     dependencies:
+       shebang-regex: 3.0.0
+@@ -3611,6 +3876,11 @@ snapshots:
+ 
+   signal-exit@4.1.0: {}
+ 
++  simple-swizzle@0.2.2:
++    dependencies:
++      is-arrayish: 0.3.2
++    optional: true
++
+   source-map-js@1.2.1: {}
+ 
+   source-map-support@0.5.21:
+@@ -3663,7 +3933,7 @@ snapshots:
+     dependencies:
+       js-tokens: 9.0.1
+ 
+-  styled-jsx@5.1.1(@babel/core@7.26.10)(react@18.3.1):
++  styled-jsx@5.1.6(@babel/core@7.26.10)(react@18.3.1):
+     dependencies:
+       client-only: 0.0.1
+       react: 18.3.1

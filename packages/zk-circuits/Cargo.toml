@@ -10,42 +10,34 @@ license = "MIT"
 crate-type = ["cdylib", "rlib"] # cdylib for WASM, rlib for integration tests/scripts
 
 [dependencies]
-# WASM Interaction
 wasm-bindgen = "0.2.89"
 serde = { version = "1.0", features = ["derive"] }
-serde_bytes = "0.11"
 serde-wasm-bindgen = "0.6"
+getrandom = { version = "0.2", features = ["js"] }
+web-sys = { version = "0.3", features = ["console"] }
+hex = "0.4"
+once_cell = "1.19"
+thiserror = "1.0"
 console_error_panic_hook = { version = "0.1.7", optional = true }
-getrandom = { version = "0.2", features = ["js"] } # WASM random source
-web-sys = { version = "0.3.77", features = ["console"] } # For console logging in WASM
+parking_lot = "0.12"
 
-# Arkworks Core & Algebra
+# Arkworks - Focus on disabling defaults only where needed for no_std runtime
 ark-ff = { version = "^0.5.0", default-features = false }
 ark-ec = { version = "^0.5.0", default-features = false }
 ark-bls12-381 = { version = "^0.5.0", default-features = false, features = ["curve"] }
-ark-ed-on-bls12-381 ={ version = "^0.5.0", default-features = false, features = ["r1cs"] }
-ark-std = { version = "^0.5.0", default-features = false, features = ["print-trace"] } # Add "parallel" if needed
+ark-std = { version = "^0.5.0", default-features = false } # Add "parallel" if needed, "print-trace" is not working in WASM because using Instant
 ark-relations = { version = "^0.5.0", default-features = false }
 ark-r1cs-std = { version = "^0.5.0", default-features = false }
-ark-snark = "^0.5.0"
+ark-snark = { version = "^0.5.0", default-features = false }
 ark-groth16 = { version = "^0.5.0", default-features = false, features = ["r1cs"] }
-ark-crypto-primitives = { version = "^0.5.0", default-features = false, features = ["std", "prf", "commitment", "crh", "merkle_tree", "sponge", "r1cs"] }
-ark-serialize = { version = "^0.5.0", features = ["derive"] }
-# Utilities
-hex = "0.4"
-once_cell = "1.19"      # For global PK/VK/Params storage
-parking_lot = "0.12"    # Mutex for thread-safe access to globals
-rand = "0.8"            # For proof generation randomness
-thiserror = "1.0"       # For error handling
-bincode = "1.3"         # Alternative serialization (optional)
-instant = { version = "0.1.13", features = [ "wasm-bindgen", "inaccurate" ] }
-
-
+ark-crypto-primitives = { version = "^0.5.0", default-features = false, features = ["crh", "merkle_tree", "sponge"] }
+ark-serialize = { version = "^0.5.0", default-features = false, features = ["derive"] }
 [dev-dependencies]
-wasm-bindgen-test = "0.3.39" # For WASM testing
+wasm-bindgen-test = "0.3.39"
 
 [features]
-default = ["console_error_panic_hook"]
+default = []
+panic_hook = ["console_error_panic_hook"]
 # parallel = ["ark-std/parallel", "ark-crypto-primitives/parallel"] # Enable parallel features if needed
 
 [profile.release]

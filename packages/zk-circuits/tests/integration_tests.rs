@@ -18,6 +18,7 @@ use ark_std::{test_rng, vec::Vec};
 
 // Import types and circuit from the library crate
 use zk_circuits::{
+    error::GachaCircuitError,
     circuit::UserPullCircuit, // Optional: Use if testing error conditions
     types::{
         prepare_groth16_public_inputs, ConstraintField, GachaMerkleConfig,
@@ -62,7 +63,7 @@ fn create_test_data(
     poseidon_params: &NativePoseidonConfig,
     tree_size: usize, // Must be power of 2
     target_leaf_index: usize,
-) -> Result<(NativeGachaCircuitInputs, Fr), Box<dyn std::error::Error>> {
+) -> Result<(NativeGachaCircuitInputs, Fr), GachaCircuitError> {
     assert!(tree_size.is_power_of_two());
     assert!(target_leaf_index < tree_size);
 
@@ -134,8 +135,8 @@ fn setup_groth16_keys(
     let (dummy_inputs, _) = create_test_data(poseidon_params, tree_size, target_leaf_index)?; // Small tree for setup
     let dummy_circuit = UserPullCircuit::new(dummy_inputs, poseidon_params.clone());
 
-    let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(dummy_circuit, &mut rng)?;
-    let pvk = Groth16::<Bls12_381>::process_vk(&vk)?;
+    let (pk, vk) = Groth16::<Bls12_381>::circuit_specific_setup(dummy_circuit, &mut rng).unwrap();
+    let pvk = Groth16::<Bls12_381>::process_vk(&vk).unwrap();
     Ok((pk, vk, pvk))
 }
 

@@ -4,16 +4,17 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_snark::SNARK;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-use serde_wasm_bindgen::from_value; // Use serde_wasm_bindgen
+use serde_wasm_bindgen::from_value;
+use utils::get_rng;
 use wasm_bindgen::prelude::*;
 use web_sys::console; // Import console for logging
 
 // Import required modules
-pub mod bench;
 pub mod circuit;
 pub mod error;
 pub mod tests;
 pub mod types;
+pub mod utils;
 
 // Re-export types needed for WASM boundary
 pub use error::GachaCircuitError;
@@ -91,7 +92,9 @@ pub fn generate_gacha_proof(inputs_js: JsValue) -> Result<Vec<u8>, JsValue> {
     let circuit = UserPullCircuit::new(native_inputs, params);
 
     // 4. Generate the proof
-    let mut rng = rand::thread_rng();
+    let mut rng = get_rng(None)
+        .map_err(|e| GachaCircuitError::SetupError(format!("Failed to get RNG: {}", e)))?;
+
     let proof = Groth16::<Bls12_381>::prove(&pk, circuit, &mut rng)
         .map_err(|e| GachaCircuitError::ProofGeneration(e.to_string()))?;
 

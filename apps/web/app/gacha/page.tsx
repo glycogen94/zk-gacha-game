@@ -5,21 +5,23 @@ import { useGachaStore } from '@/stores/gachaStore'; // 이 파일은 나중에 
 import { useEffect } from 'react';
 
 export default function GachaPage() {
-  const { loadInitialAssets, isLoadingAssets, initializationError } =
-    useGachaStore((state) => ({
-      loadInitialAssets: state.loadInitialAssets,
-      isLoadingAssets: state.isLoadingAssets,
-      initializationError: state.initializationError,
-    }));
+  // Select each piece of state individually
+  const loadInitialAssets = useGachaStore((state) => state.loadInitialAssets);
+  const isLoadingAssets = useGachaStore((state) => state.isLoadingAssets);
+  const initializationError = useGachaStore(
+    (state) => state.initializationError,
+  );
+  // Also select isKeysInitialized for the useEffect logic directly
+  const isKeysInitialized = useGachaStore((state) => state.isKeysInitialized);
 
   // Load assets once on component mount
   useEffect(() => {
-    // isInitialized 값을 확인하여 이미 초기화된 경우 다시 호출하지 않음
-    const { isKeysInitialized, isLoadingAssets } = useGachaStore.getState();
+    // Now you can use the state variables directly from the hook
     if (!isKeysInitialized && !isLoadingAssets) {
       loadInitialAssets();
     }
-  }, []);
+    // Dependencies are now primitives or stable functions, which is ideal
+  }, [isKeysInitialized, isLoadingAssets, loadInitialAssets]);
 
   if (isLoadingAssets) {
     return (

@@ -14,7 +14,7 @@ import {
 } from '@/lib/wasmLoader'; // Adjust path if needed
 
 // Define types for clarity within the store
-interface ItemDetails {
+export interface ItemDetails {
   id: string;
   name: string;
   imageUrl: string;
@@ -32,7 +32,7 @@ interface PullResultData {
 }
 
 // The complete state managed by Zustand
-interface GachaState {
+export interface GachaState {
   // --- Static Assets & Initialization Status ---
   merkleRoot: string | null;
   itemMasterData: Record<string, ItemDetails> | null;
@@ -98,7 +98,7 @@ export const useGachaStore = create<GachaState>()(
           console.log('Assets already loading or initialized.');
           return;
         }
-        
+
         // 로딩 상태에 따라서만 상태 변경
         set({ isLoadingAssets: true, initializationError: null });
         console.log('Starting initial asset load...');
@@ -154,7 +154,11 @@ export const useGachaStore = create<GachaState>()(
 
           const availableKeyUrls = keyListText
             .split('\n')
-            .map((line) => line.trim())
+            .map((line) => {
+              // Remove the 'apps/web/public/' prefix if it exists
+              const trimmed = line.trim();
+              return trimmed.replace(/^apps\/web\/public\//, '');
+            })
             .filter((line) => line !== '');
 
           if (availableKeyUrls.length === 0) {
@@ -298,7 +302,6 @@ export const useGachaStore = create<GachaState>()(
           // This needs to exactly match the structure expected by the Rust
           // function that uses #[wasm_bindgen] and serde_wasm_bindgen::from_value
           const wasmInputs = {
-            // No need to explicitly type if TS knows the WASM function signature
             merkleRoot: merkleRoot,
             itemIdHex: pullResult.itemIdHex,
             secretKeyHex: pullResult.secretKeyHex,
@@ -308,18 +311,9 @@ export const useGachaStore = create<GachaState>()(
           };
           console.log('Inputs for proof generation (JS Object):', wasmInputs);
 
-          let inputsBytes: Uint8Array;
-          try {
-            const jsonString = JSON.stringify(wasmInputs);
-            inputsBytes = new TextEncoder().encode(jsonString);
-          } catch (serializationError) {
-            throw new Error(
-              `Input serialization error: ${serializationError instanceof Error ? serializationError.message : String(serializationError)}`,
-            );
-          }
-
-          // Call the WASM function via the loader's export
-          const proofBytes: Uint8Array = await generateGachaProof(inputsBytes);
+          // 변경된 부분: 객체를 직접 전달
+          // JSON 문자열 변환 및 Uint8Array 변환 단계를 제거
+          const proofBytes: Uint8Array = await generateGachaProof(wasmInputs);
 
           set({ proof: proofBytes, isGeneratingProof: false });
           console.log(

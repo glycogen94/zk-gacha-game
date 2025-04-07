@@ -109,18 +109,29 @@ export const initGachaKeys = async (
 
 /**
  * 제공된 입력에 대한 ZK-SNARK 증명을 생성합니다.
- * @param inputsBytes 직렬화된 WasmGachaCircuitInputs 바이트 배열
+ * @param inputs WasmGachaCircuitInputs와 일치하는 JavaScript 객체
  * @returns 직렬화된 증명 바이트 배열
  */
+// Define input type for generateGachaProof
+interface GachaCircuitInputs {
+  merkleRoot: string;
+  itemIdHex: string;
+  secretKeyHex: string;
+  merklePathNodesHex: string[];
+  leafSiblingHashHex: string;
+  leafIndex: number;
+}
+
 export const generateGachaProof = async (
-  inputsBytes: Uint8Array, // 이제 바이트 배열을 직접 받습니다.
+  inputs: GachaCircuitInputs,
 ): Promise<Uint8Array> => {
   const wasm = await loadWasmModule();
   if (typeof wasm.generate_gacha_proof !== 'function') {
     throw new Error("WASM module does not export 'generate_gacha_proof'");
   }
-  // WASM 함수에 바이트 배열 전달
-  return wasm.generate_gacha_proof(inputsBytes);
+  // WASM 함수에 JavaScript 객체 직접 전달
+  // serde_wasm_bindgen이 JsValue -> WasmGachaCircuitInputs 변환을 처리함
+  return wasm.generate_gacha_proof(inputs);
 };
 
 /**

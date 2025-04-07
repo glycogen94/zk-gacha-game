@@ -1,5 +1,6 @@
 'use client';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button'; // Shadcn UI 버튼 컴포넌트 사용
 import {
   Card,
@@ -9,7 +10,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useGachaStore } from '@/stores/gachaStore';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
+
+// 트랜지션 효과를 위한 스타일 정의
+const transitionStyle = 'transition-all duration-300 ease-in-out';
 
 // Helper functions for Pokémon card styling
 const getPokemonColorByRarity = (rarity: string): string => {
@@ -73,18 +77,31 @@ export default function GachaDisplay() {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        <p>Initializing cryptographic components...</p>
+        <p>
+          Initializing zero-knowledge proof system and cryptographic keys...
+        </p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-center">
+      {/* Security Disclaimer */}
+      <Alert className="mb-6 max-w-md">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Demo Environment</AlertTitle>
+        <AlertDescription>
+          This demo uses client-side proof generation for educational purposes.
+          In a production environment, proofs would be generated server-side for
+          proper security.
+        </AlertDescription>
+      </Alert>
+
       {/* Pull Button */}
       <Button
         onClick={handlePull}
         disabled={isPulling || isGeneratingProof || isVerifyingProof}
-        className="mb-6 px-6 py-3 text-lg bg-red-500 hover:bg-red-600"
+        className={`mb-6 px-6 py-3 text-lg bg-red-500 hover:bg-red-600 ${transitionStyle}`}
         size="lg"
       >
         {isPulling ? (
@@ -97,21 +114,26 @@ export default function GachaDisplay() {
         )}
       </Button>
 
+      {/* Pull Error Display */}
       {pullError && (
-        <div className="text-red-500 mb-6 p-2 bg-red-50 rounded w-full max-w-md text-center">
-          {pullError}
-        </div>
+        <Alert variant="destructive" className="mb-6 max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{pullError}</AlertDescription>
+        </Alert>
       )}
 
       {/* Result Display Area */}
       {pullResult && !isPulling && (
-        <Card className="w-full max-w-md">
+        <Card
+          className={`w-full max-w-md ${transitionStyle} ${proof ? 'shadow-lg' : 'shadow'}`}
+        >
           <CardHeader>
             <CardTitle className="text-center">You Pulled:</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <div
-              className="w-40 h-56 mb-4 transform hover:scale-105 transition-transform duration-300 overflow-hidden rounded-lg border-4"
+              className={`w-40 h-56 mb-4 transform hover:scale-105 ${transitionStyle} overflow-hidden rounded-lg border-4`}
               style={{
                 borderColor: getPokemonColorByRarity(
                   pullResult.itemDetails.rarity || 'common',
@@ -148,22 +170,26 @@ export default function GachaDisplay() {
               <Button
                 onClick={handleGenerateProof}
                 disabled={isGeneratingProof || isVerifyingProof}
-                className="mb-2 w-full"
+                className={`mb-2 w-full ${transitionStyle}`}
                 variant="outline"
               >
                 Generate Verification Proof
               </Button>
             )}
             {isGeneratingProof && (
-              <div className="flex items-center mb-2">
+              <div
+                className={`flex items-center justify-center mb-2 w-full p-2 ${transitionStyle}`}
+              >
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <p>Generating Proof...</p>
+                <p>Generating Zero-Knowledge Proof...</p>
               </div>
             )}
             {proofGenerationError && (
-              <div className="text-red-500 mb-2 text-sm">
-                Proof Generation Error: {proofGenerationError}
-              </div>
+              <Alert variant="destructive" className="mb-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Proof Generation Failed</AlertTitle>
+                <AlertDescription>{proofGenerationError}</AlertDescription>
+              </Alert>
             )}
 
             {/* Proof Verification Button */}
@@ -171,38 +197,48 @@ export default function GachaDisplay() {
               <Button
                 onClick={handleVerifyProof}
                 disabled={isVerifyingProof}
-                className="mb-2 w-full"
+                className={`mb-2 w-full ${transitionStyle}`}
                 variant="outline"
               >
                 Verify Proof
               </Button>
             )}
             {isVerifyingProof && (
-              <div className="flex items-center mb-2">
+              <div
+                className={`flex items-center justify-center mb-2 w-full p-2 ${transitionStyle}`}
+              >
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <p>Verifying Proof...</p>
+                <p>Verifying Zero-Knowledge Proof...</p>
               </div>
             )}
             {verificationError && (
-              <div className="text-red-500 mb-2 text-sm">
-                Verification Error: {verificationError}
-              </div>
+              <Alert variant="destructive" className="mb-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Verification Failed</AlertTitle>
+                <AlertDescription>{verificationError}</AlertDescription>
+              </Alert>
             )}
 
             {/* Verification Result */}
             {verificationResult !== null && (
               <div
-                className={`flex items-center mb-2 ${verificationResult ? 'text-green-600' : 'text-red-600'}`}
+                className={`flex items-center justify-center mb-2 w-full p-3 rounded-md ${transitionStyle} ${
+                  verificationResult
+                    ? 'bg-green-50 text-green-600 border border-green-200'
+                    : 'bg-red-50 text-red-600 border border-red-200'
+                }`}
               >
                 {verificationResult ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Verification Successful!
+                    <span className="font-medium">
+                      Verification Successful!
+                    </span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-5 h-5 mr-2" />
-                    Verification Failed!
+                    <span className="font-medium">Verification Failed!</span>
                   </>
                 )}
               </div>
