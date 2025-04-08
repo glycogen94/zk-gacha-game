@@ -25,6 +25,15 @@ export default function Home() {
         >
           View Inventory
         </Link>
+
+        <Link
+          href="https://github.com/glycogen94/Nextjs-Rust-WASM-monorepo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition-colors"
+        >
+          View on GitHub
+        </Link>
       </div>
     </main>
   );
