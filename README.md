@@ -1,6 +1,6 @@
 # ZK Gacha Game Demo
 
-[![CI Checks](https://github.com/YOUR_USERNAME/zk-gacha-game/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/zk-gacha-game/actions/workflows/ci.yml)
+[![CI Checks](https://github.com/glycogen94/zk-gacha-game/actions/workflows/ci.yml/badge.svg)](https://github.com/glycogen94/zk-gacha-game/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **A demonstration of a verifiable gacha (loot box) game using Zero-Knowledge Proofs (ZK-SNARKs).**
