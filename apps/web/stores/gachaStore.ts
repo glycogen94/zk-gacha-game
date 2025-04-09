@@ -1,19 +1,12 @@
-// apps/web/stores/gachaStore.ts
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-// Import types from the WASM package if needed elsewhere, but not directly for WASM calls now
-// import type { WasmGachaCircuitInputs } from 'zk-circuits';
-
-// Import functions from the WASM loader
 import {
   generateGachaProof,
-  getLoadedWasmModule, // Optional: Use if sure it's loaded
   initGachaKeys,
-  loadWasmModule, // Call this once to ensure loading
+  loadWasmModule,
   verifyGachaProof,
-} from '@/lib/wasmLoader'; // Adjust path if needed
+} from '@/lib/wasmLoader';
 
-// Define types for clarity within the store
 export interface ItemDetails {
   id: string;
   name: string;
@@ -21,7 +14,6 @@ export interface ItemDetails {
   rarity?: string;
 }
 
-// Data structure expected from the fetched item_{index}.json file
 interface PullResultData {
   itemIdHex: string;
   secretKeyHex: string;
@@ -31,36 +23,24 @@ interface PullResultData {
   itemDetails: ItemDetails;
 }
 
-// The complete state managed by Zustand
 export interface GachaState {
-  // --- Static Assets & Initialization Status ---
   merkleRoot: string | null;
   itemMasterData: Record<string, ItemDetails> | null;
   availableKeyUrls: string[];
-  isWasmInitialized: boolean; // Now tracks if loadWasmModule has resolved
-  isKeysInitialized: boolean; // Tracks if initGachaKeys has been successfully called via loader
+  isWasmInitialized: boolean;
+  isKeysInitialized: boolean;
   isLoadingAssets: boolean;
   initializationError: string | null;
-
-  // --- Gacha Process State ---
   isPulling: boolean;
   pullResult: PullResultData | null;
   pullError: string | null;
-
-  // --- Proof State ---
   isGeneratingProof: boolean;
   proof: Uint8Array | null;
   proofGenerationError: string | null;
-
-  // --- Verification State ---
   isVerifyingProof: boolean;
   verificationResult: boolean | null;
   verificationError: string | null;
-
-  // --- User Data ---
   inventory: ItemDetails[];
-
-  // --- Actions ---
   loadInitialAssets: () => Promise<void>;
   performPull: () => Promise<void>;
   generateProofForLastPull: () => Promise<void>;
@@ -71,12 +51,11 @@ export interface GachaState {
 export const useGachaStore = create<GachaState>()(
   persist(
     (set, get) => ({
-      // --- Initial State Values ---
       merkleRoot: null,
       itemMasterData: null,
       availableKeyUrls: [],
-      isWasmInitialized: false, // Initialized via loadInitialAssets
-      isKeysInitialized: false, // Initialized via loadInitialAssets
+      isWasmInitialized: false,
+      isKeysInitialized: false,
       isLoadingAssets: false,
       initializationError: null,
       isPulling: false,
@@ -90,36 +69,30 @@ export const useGachaStore = create<GachaState>()(
       verificationError: null,
       inventory: [],
 
-      // --- Action Implementations ---
       loadInitialAssets: async () => {
-        // 이미 로딩 중이거나 초기화되어 있는 경우 바로 종료
         const state = get();
         if (state.isLoadingAssets || state.isKeysInitialized) {
           console.log('Assets already loading or initialized.');
           return;
         }
 
-        // 로딩 상태에 따라서만 상태 변경
         set({ isLoadingAssets: true, initializationError: null });
         console.log('Starting initial asset load...');
 
         try {
-          // 1. Ensure WASM module is loaded (and panic hook is set) via the loader
-          // This will only load it once. Subsequent calls resolve immediately.
           await loadWasmModule();
-          set({ isWasmInitialized: true }); // Mark WASM module as ready
+          set({ isWasmInitialized: true });
           console.log('WASM loader finished.');
 
-          // 2. Fetch cryptographic assets and game data
           console.log('Fetching assets...');
           const [pkRes, vkRes, paramsRes, rootRes, keyListRes, masterDataRes] =
             await Promise.all([
               fetch('/gacha/gacha_pk.bin'),
               fetch('/gacha/gacha_vk.bin'),
               fetch('/gacha/params.bin'),
-              fetch('/gacha/merkle_root.hex'), // Fetch the hex string
-              fetch('/gacha/items/key_list.txt'), // Fetch the list of JSON file URLs
-              fetch('/gacha/item_master.json'), // Fetch item details map
+              fetch('/gacha/merkle_root.hex'),
+              fetch('/gacha/items/key_list.txt'),
+              fetch('/gacha/item_master.json'),
             ]);
 
           const responses = {
@@ -141,7 +114,6 @@ export const useGachaStore = create<GachaState>()(
           }
           console.log('All assets fetched successfully.');
 
-          // 3. Process fetched data
           const pkBytes = new Uint8Array(await pkRes.arrayBuffer());
           const vkBytes = new Uint8Array(await vkRes.arrayBuffer());
           const paramsBytes = new Uint8Array(await paramsRes.arrayBuffer());
@@ -155,7 +127,6 @@ export const useGachaStore = create<GachaState>()(
           const availableKeyUrls = keyListText
             .split('\n')
             .map((line) => {
-              // Remove the 'apps/web/public/' prefix if it exists
               const trimmed = line.trim();
               return trimmed.replace(/^apps\/web\/public\//, '');
             })
@@ -165,13 +136,11 @@ export const useGachaStore = create<GachaState>()(
             console.warn('Warning: key_list.txt seems empty or invalid.');
           }
 
-          // 4. Initialize WASM keys/params using the loader's exported function
           console.log('Initializing WASM with keys and params via loader...');
           await initGachaKeys(pkBytes, vkBytes, paramsBytes);
-          set({ isKeysInitialized: true }); // Mark keys as initialized in WASM
+          set({ isKeysInitialized: true });
           console.log('WASM keys initialized.');
 
-          // 5. Update state
           set({
             merkleRoot: merkleRootHex,
             availableKeyUrls: availableKeyUrls,
@@ -185,7 +154,7 @@ export const useGachaStore = create<GachaState>()(
             initializationError:
               error instanceof Error ? error.message : String(error),
             isLoadingAssets: false,
-            isWasmInitialized: false, // Reset flags on error
+            isWasmInitialized: false,
             isKeysInitialized: false,
           });
         }
@@ -199,7 +168,7 @@ export const useGachaStore = create<GachaState>()(
           isLoadingAssets,
           isKeysInitialized,
         } = get();
-        if (isPulling || isLoadingAssets || !isKeysInitialized) return; // Prevent concurrent/premature pulls
+        if (isPulling || isLoadingAssets || !isKeysInitialized) return;
         if (availableKeyUrls.length === 0 || !itemMasterData) {
           set({ pullError: 'Assets not loaded or no keys available.' });
           return;
@@ -220,30 +189,21 @@ export const useGachaStore = create<GachaState>()(
             Math.random() * availableKeyUrls.length,
           );
           const selectedUrlPath = availableKeyUrls[randomIndex];
-          const fullUrl = `/${selectedUrlPath}`; // Assumes relative path from /public
+          const fullUrl = `/${selectedUrlPath}`;
 
           console.log(`Fetching item data from: ${fullUrl}`);
           const response = await fetch(fullUrl);
-          if (!response.ok)
-            throw new Error(`Fetch failed: ${response.status} for ${fullUrl}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch data from ${fullUrl}`);
+          }
 
           const itemProofJson: Omit<PullResultData, 'itemDetails'> =
             await response.json();
-
-          // Basic Validation
-          const requiredKeys: (keyof Omit<PullResultData, 'itemDetails'>)[] = [
-            'itemIdHex',
-            'secretKeyHex',
-            'merklePathNodesHex',
-            'leafSiblingHashHex',
-            'leafIndex',
-          ];
-          if (
-            requiredKeys.some((key) => !(key in itemProofJson)) ||
-            !Array.isArray(itemProofJson.merklePathNodesHex) ||
-            typeof itemProofJson.leafIndex !== 'number'
-          ) {
-            throw new Error(`Invalid item data structure from ${fullUrl}`);
+          if (!itemProofJson || typeof itemProofJson.itemIdHex === 'undefined') {
+            set({
+              pullError: 'Invalid pull data received. Check the JSON structure.',
+            });
+            return;
           }
 
           const itemDetails = itemMasterData[itemProofJson.itemIdHex];
@@ -298,9 +258,6 @@ export const useGachaStore = create<GachaState>()(
         console.log('Generating ZK proof...');
 
         try {
-          // Prepare the input object structure
-          // This needs to exactly match the structure expected by the Rust
-          // function that uses #[wasm_bindgen] and serde_wasm_bindgen::from_value
           const wasmInputs = {
             merkleRoot: merkleRoot,
             itemIdHex: pullResult.itemIdHex,
@@ -311,8 +268,6 @@ export const useGachaStore = create<GachaState>()(
           };
           console.log('Inputs for proof generation (JS Object):', wasmInputs);
 
-          // 변경된 부분: 객체를 직접 전달
-          // JSON 문자열 변환 및 Uint8Array 변환 단계를 제거
           const proofBytes: Uint8Array = await generateGachaProof(wasmInputs);
 
           set({ proof: proofBytes, isGeneratingProof: false });
@@ -349,7 +304,6 @@ export const useGachaStore = create<GachaState>()(
         console.log('Verifying ZK proof...');
 
         try {
-          // Call the WASM function via the loader's export
           const isValid: boolean = await verifyGachaProof(merkleRoot, proof);
           console.log('Verification result:', isValid);
 
